@@ -7,18 +7,27 @@ library(leaflet)
 library(RColorBrewer)
 library(tidyverse)
 library(DT)
+#library(rjson)
+library(jsonlite)
+library(lubridate)
+
+options(shiny.maxRequestSize=100*1024^2) 
 
 ui <- fluidPage(
   h2("Google Chrome History Assistant"), 
   br(), 
   fluidRow(
     column(3, 
-           fileInput("file1", "Choose Personal Google Files",
-                    accept = c(
-                      "text/csv",
-                      "text/comma-separated-values,text/plain",
-                      ".csv")
+           fileInput("history_json", 
+                     "Select Chrome History JSON File",
+                    accept = c("text/json", 
+                               "json", ".json")
            ), 
+           fileInput("location_json", 
+                     "Select Chrome Location JOSN File",
+                     accept = c("text/json", 
+                                "json", ".json")
+           ),  
            h3("Filter Criteria"), 
            dateRangeInput('dateRange',
                           label = 'Date range input:',
@@ -103,6 +112,55 @@ ui <- fluidPage(
 #)
 
 server <- function(input, output, session) {
+  
+  history <- reactive({
+    temp <- fromJSON(input$history_json)
+    temp <- temp$`Browser History`
+    colnames(temp) <- c('time', 'page_transition', 'title', 'url')
+    temp <- temp %>% select(time, title, url)
+    
+    # temp <- data_frame(time = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$time_usec), 
+    #                         # page_transition = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$page_transition), 
+    #                         title = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$title), 
+    #                         url = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$url))
+    
+    
+  })
+  
+  location <- reactive({
+    temp <- fromJSON(input$location_json)
+    temp <- temp$locations
+    colnames(temp) <- c('time', 'lat', 'long')
+    temp <- temp$locations %>% select(time, lat, long)
+    
+        
+    # temp <- data_frame(time = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$timestampMs), 
+    #            lat = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$latitudeE7), 
+    #            long = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$longitudeE7)#, 
+    #            #accuracy = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$accuracy), 
+    #            #altitude = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$altitude)
+    #            )
+    
+    # clean data
+    
+    temp <- temp %>% 
+      mutate(time = as_datetime(as.numeric(time)/1000), 
+             long = long/10^7, 		
+             lat = lat/10^7)
+    
+    # temp <- temp %>% 
+    #   arrange(time) %>% 
+    #   mutate(day = ymd(substr(as.character(time), 1, 10))) #%>% 
+    #   # select(time, lat, long, day)
+    # 
+    # temp <- temp %>% 
+    #   distinct(lat, long, .keep_all = TRUE)
+    
+    
+    # as.numeric(as.duration(as.interval(as_datetime(as.numeric(test[[1,1]])/1000) - as_datetime(as.numeric(test[[1000,1]])/1000), start = as_datetime(as.numeric(test[[1,1]])/1000))), "minutes")
+    
+    
+  })
   
   # # Reactive expression for the data subsetted to what the user selected
   # filteredData <- reactive({
