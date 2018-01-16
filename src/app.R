@@ -114,10 +114,17 @@ ui <- fluidPage(
 server <- function(input, output, session) {
   
   history <- reactive({
-    temp <- fromJSON(input$history_json)
-    temp <- temp$`Browser History`
-    colnames(temp) <- c('time', 'page_transition', 'title', 'url')
-    temp <- temp %>% select(time, title, url)
+    if (length(input$history_json) > 0){
+      temp <- fromJSON(input$history_json$datapath)
+      temp <- temp$`Browser History`
+      colnames(temp) <- c('icon', 'page_transition', 'title', 'url', 'id', 'time')
+      temp <- temp %>% select(time, title, url)
+      
+      # as_data_frame(temp)
+      
+    }else{
+      temp <- data_frame('time' = character(0), 'title' = character(0), 'url' = character(0))
+    }
     
     # temp <- data_frame(time = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$time_usec), 
     #                         # page_transition = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$page_transition), 
@@ -125,41 +132,52 @@ server <- function(input, output, session) {
     #                         url = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$url))
     
     
+    return(temp)
+    
   })
   
   location <- reactive({
-    temp <- fromJSON(input$location_json)
-    temp <- temp$locations
-    colnames(temp) <- c('time', 'lat', 'long')
-    temp <- temp$locations %>% select(time, lat, long)
+    if (length(input$location_json) > 0){
+      temp <- fromJSON(input$location_json$datapath)
+      temp <- temp$locations
+      colnames(temp) <- c('time', 'lat', 'long', 'a', 'b', 'c', 'd', 'e')
+      temp <- temp$locations %>% select(time, lat, long)
+      
+          
+      # temp <- data_frame(time = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$timestampMs), 
+      #            lat = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$latitudeE7), 
+      #            long = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$longitudeE7)#, 
+      #            #accuracy = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$accuracy), 
+      #            #altitude = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$altitude)
+      #            )
+      
+      # clean data
+      
+      temp <- temp %>% 
+        mutate(time = as_datetime(as.numeric(time)/1000), 
+               long = long/10^7, 		
+               lat = lat/10^7)
+      
+      # temp <- temp %>% 
+      #   arrange(time) %>% 
+      #   mutate(day = ymd(substr(as.character(time), 1, 10))) #%>% 
+      #   # select(time, lat, long, day)
+      # 
+      # temp <- temp %>% 
+      #   distinct(lat, long, .keep_all = TRUE)
+      
+      
+      # as.numeric(as.duration(as.interval(as_datetime(as.numeric(test[[1,1]])/1000) - as_datetime(as.numeric(test[[1000,1]])/1000), start = as_datetime(as.numeric(test[[1,1]])/1000))), "minutes")
+    }else{
+      temp <- data_frame('time' = character(0), 'lat' = character(0), 'long' = character(0))
+    }
     
-        
-    # temp <- data_frame(time = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$timestampMs), 
-    #            lat = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$latitudeE7), 
-    #            long = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$longitudeE7)#, 
-    #            #accuracy = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$accuracy), 
-    #            #altitude = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$altitude)
-    #            )
+    return(temp)
     
-    # clean data
-    
-    temp <- temp %>% 
-      mutate(time = as_datetime(as.numeric(time)/1000), 
-             long = long/10^7, 		
-             lat = lat/10^7)
-    
-    # temp <- temp %>% 
-    #   arrange(time) %>% 
-    #   mutate(day = ymd(substr(as.character(time), 1, 10))) #%>% 
-    #   # select(time, lat, long, day)
-    # 
-    # temp <- temp %>% 
-    #   distinct(lat, long, .keep_all = TRUE)
-    
-    
-    # as.numeric(as.duration(as.interval(as_datetime(as.numeric(test[[1,1]])/1000) - as_datetime(as.numeric(test[[1000,1]])/1000), start = as_datetime(as.numeric(test[[1,1]])/1000))), "minutes")
-    
-    
+  })
+  
+  top_websites_df <- reactive({
+    websites <- history() %>% select(title)
   })
   
   # # Reactive expression for the data subsetted to what the user selected
@@ -214,8 +232,8 @@ server <- function(input, output, session) {
   
   # https://yihui.shinyapps.io/DT-rows/
   
-  output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
-  
+  # output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
+  output$top_websites <- DT::renderDataTable({top_websites_df()})
   
   output$bars <- renderPlot({ggplot(data.frame("Top_Words" = c("Python", "R", "Despacito",
                                                                "definition", "for", "loop",
