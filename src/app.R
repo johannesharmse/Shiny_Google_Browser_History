@@ -13,6 +13,9 @@ library(lubridate)
 
 options(shiny.maxRequestSize=100*1024^2) 
 
+time_range_start <- NULL
+time_range_end <- NULL
+
 ui <- fluidPage(
   h2("Google Chrome History Assistant"), 
   br(), 
@@ -29,10 +32,7 @@ ui <- fluidPage(
                                 "json", ".json")
            ),  
            h3("Filter Criteria"), 
-           dateRangeInput('dateRange',
-                          label = 'Date range input:',
-                          start = Sys.Date() - 365, end = Sys.Date()
-           ), 
+           uiOutput("dates"), 
            sliderInput("range", "Time Range (Hours of Day)",
                        min = 0, max = 24,
                        value = c(0,24)), 
@@ -120,6 +120,12 @@ server <- function(input, output, session) {
       colnames(temp) <- c('icon', 'page_transition', 'title', 'url', 'id', 'time')
       temp <- temp %>% select(time, title, url)
       
+      # clean data
+      
+      temp <- temp %>% 
+        mutate(time = as_datetime(as.numeric(time)/1000000))
+      
+      
       # as_data_frame(temp)
       
     }else{
@@ -176,8 +182,32 @@ server <- function(input, output, session) {
     
   })
   
+  time_range <- reactive({
+    if (length(input$history_json) > 0){
+      temp <- history()
+      time_min <- min(temp$time)
+      time_max <- max(temp$time)
+    }else{
+      time_min <- Sys.Date() - 365
+      time_max <- Sys.Date()
+    }
+    return(c(time_min, time_max))
+  })
+  
+  output$dates <- renderUI({
+    date_range <- time_range()
+    #date_range <- as.character(date_range)
+    dateRangeInput('dateRange',
+                   label = 'Date range input:',
+                   start = date_range[1], 
+                   end = date_range[2])
+  })
+  
+  #time_range_start <- time_range[1]
+  #time_range_end <- time_range[2]
+  
   top_websites_df <- reactive({
-    websites <- history() %>% select(title)
+    websites <- history() #%>% select(title)
   })
   
   # # Reactive expression for the data subsetted to what the user selected
