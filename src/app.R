@@ -63,28 +63,6 @@ ui <- fluidPage(
   )
   )
 )
-           
-           
-           
-#            
-#            #dataTableOutput('table')
-#            h3(), 
-#            h3("Browsing Locations"), 
-#            br(), 
-#            h4("Click on a pin for browser summary"), 
-#            br(), 
-#            
-#            br(), 
-#            
-#            
-#            
-#            
-#            
-#             
-#            plotOutput("bars", click = "plot_click")
-#     )
-#   )
-# )
 
 
 # ui <- bootstrapPage(
@@ -125,17 +103,9 @@ server <- function(input, output, session) {
       temp <- temp %>% 
         mutate(time = as_datetime(as.numeric(time)/1000000))
       
-      
-      # as_data_frame(temp)
-      
     }else{
       temp <- data_frame('time' = character(0), 'title' = character(0), 'url' = character(0))
     }
-    
-    # temp <- data_frame(time = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$time_usec), 
-    #                         # page_transition = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$page_transition), 
-    #                         title = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$title), 
-    #                         url = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$url))
     
     
     return(temp)
@@ -148,14 +118,6 @@ server <- function(input, output, session) {
       temp <- temp$locations
       colnames(temp) <- c('time', 'lat', 'long', 'a', 'b', 'c', 'd', 'e')
       temp <- temp$locations %>% select(time, lat, long)
-      
-          
-      # temp <- data_frame(time = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$timestampMs), 
-      #            lat = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$latitudeE7), 
-      #            long = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$longitudeE7)#, 
-      #            #accuracy = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$accuracy), 
-      #            #altitude = sapply(1:length(temp[[1]]), function(x) temp[[1]][[x]]$altitude)
-      #            )
       
       # clean data
       
@@ -196,18 +158,14 @@ server <- function(input, output, session) {
   
   output$dates <- renderUI({
     date_range <- time_range()
-    #date_range <- as.character(date_range)
     dateRangeInput('dateRange',
                    label = 'Date range input:',
                    start = date_range[1], 
                    end = date_range[2])
   })
   
-  #time_range_start <- time_range[1]
-  #time_range_end <- time_range[2]
-  
   top_websites_df <- reactive({
-    websites <- history() #%>% select(title)
+    websites <- history() %>% select(title)
   })
   
   # # Reactive expression for the data subsetted to what the user selected
@@ -311,13 +269,6 @@ server <- function(input, output, session) {
       fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat))
   })
   
-  
-  
-  #output$dateRangeText  <- renderText({
-  #  paste("input$dateRange is", 
-  #        paste(as.character(input$dateRange), collapse = " to ")
-  #  )
-  #})
   
 }
 
