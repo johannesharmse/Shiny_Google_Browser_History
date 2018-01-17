@@ -33,7 +33,7 @@ ui <- fluidPage(
            ),  
            h3("Filter Criteria"), 
            uiOutput("dates"), 
-           sliderInput("range", "Time Range (Hours of Day)",
+           sliderInput("time", "Time Range (Hours of Day)",
                        min = 0, max = 24,
                        value = c(0,24)), 
            checkboxGroupInput("variable", "Days of Week:",
@@ -164,8 +164,41 @@ server <- function(input, output, session) {
                    end = date_range[2])
   })
   
+  hour_range <- reactive({
+    
+    if (length(input$history_json) > 0){
+      temp <- history()
+      
+      temp <- temp %>% 
+        mutate(year = year(time), 
+               year_day = yday(time))
+      
+      hour_filt <- temp[0, ]
+      
+      for (y in 1:length(unique(temp$year))){
+        temp_year <- temp %>% filter(year == unique(temp$year)[y])
+        for (day in 1:length(unique(temp_year$year_day))){
+          temp_day <- temp_year %>% filter(year_day == unique(temp_year$year_day)[day])
+          temp_day <- temp_day %>% filter(hour(time) >= input$time[1] & hour(time) <= input$time[2])
+          
+          if (nrow(hour_filt) == 0){
+            hour_filt <- temp_day
+          }else{
+            hour_filt <- rbind(hour_filt, temp_day)
+          }
+          
+        }
+      }
+      
+      return(hour_filt)
+      
+    }
+    
+  })
+  
   top_websites_df <- reactive({
-    websites <- history() %>% select(title)
+    #websites <- history()# %>% select(title)
+    websites <- hour_range()
   })
   
   # # Reactive expression for the data subsetted to what the user selected
