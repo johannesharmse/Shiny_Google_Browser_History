@@ -118,7 +118,7 @@ server <- function(input, output, session) {
       temp <- fromJSON(input$location_json$datapath)
       temp <- temp$locations
       colnames(temp) <- c('time', 'lat', 'long', 'a', 'b', 'c', 'd', 'e')
-      temp <- temp$locations %>% select(time, lat, long)
+      temp <- temp %>% select(time, lat, long)
       
       # clean data
       
@@ -242,53 +242,66 @@ server <- function(input, output, session) {
   
   browser_locations <- reactive({
     if (length(input$history_json) > 0 && length(input$location_json)){
-      websites <- top_websites_df()
+      websites <- top_websites()
       locations <- location()
       
       location_filt <- websites[0, ]
       
       for (y in 1:length(unique(websites$year))){
-        temp_year <- temp %>% filter(year == unique(websites$year)[y])
+        temp_year <- websites %>% filter(year == unique(websites$year)[y])
         for (day in 1:length(unique(temp_year$year_day))){
           temp_day <- temp_year %>% filter(year_day == unique(temp_year$year_day)[day])
           # temp_day <- temp_day %>% filter(hour(time) >= input$time[1] & hour(time) < input$time[2])
-          
+
           locations_day <- locations %>% mutate(hour = hour(time))
-          locations_day <- locations_day %>% 
-            filter(year %in% temp_day$year & 
-            year_day %in% temp_day$year_day & 
+          locations_day <- locations_day %>%
+            filter(year %in% temp_day$year &
+            year_day %in% temp_day$year_day &
             hour %in% hour(temp_day$time))
-          
-          locations_day <- locations_day %>% 
-            group_by(year, year_day, hour) %>% 
-            summarise(mean_lat = mean(lat), 
+
+          locations_day <- locations_day %>%
+            group_by(year, year_day, hour) %>%
+            summarise(mean_lat = mean(lat),
                       mean_long = mean(long))
-          
+
           if (nrow(location_filt) == 0){
             location_filt <- locations_day
           }else{
             location_filt <- rbind(location_filt, locations_day)
           }
-          
+
+
+
         }
-        
+
       }
+      
       return(location_filt)
     }
   })
   
   
-  top_websites_df <- reactive({
+  top_websites <- reactive({
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){ #&& length(input$dates) > 0){
       websites <- history()# %>% select(title)
       dates_filter <- date_range_df()
       days_filter <- days_df()
       hours_filter <- hour_range()
-      locations <- browser_locations()
       websites <- semi_join(hours_filter, dates_filter, by = c('year', 'year_day'))
       websites <- semi_join(websites, days_filter, by = c('year', 'year_day'))
       websites <- websites %>% mutate(hour = hour(time))
+      return(websites)
+    }
+  })
+  
+  top_websites_df <- reactive({
+    if (length(input$history_json) > 0 && 
+        length(input$location_json) > 0){
+      websites <- top_websites()
+      locations <- browser_locations()
+      # locations <- location()
+      #location_filt <- websites[0, ]
       websites <- left_join(websites, locations, by = c('year', 'year_day', 'hour'))
       return(websites)
     }
