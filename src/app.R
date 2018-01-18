@@ -304,6 +304,8 @@ server <- function(input, output, session) {
       #location_filt <- websites[0, ]
       websites <- left_join(websites, locations, by = c('year', 'year_day', 'hour'))
       return(websites)
+    }else{
+      return(data_frame('mean_lat' = numeric(0), 'mean_long' = numeric(0)))
     }
   })
   
@@ -400,12 +402,36 @@ server <- function(input, output, session) {
   #  str(sapply(month.abb, function(i) input[[i]]))
   #})
   
+  map <- reactive({
+    if (length(input$history_json) > 0 && 
+        length(input$location_json) > 0){
+      return(leaflet(top_websites_df()) %>% addTiles() %>%
+              fitBounds(~min(mean_long), ~min(mean_lat), ~max(mean_long), ~max(mean_lat)))
+    }else{
+      return(leaflet(quakes) %>% addTiles() %>%
+               fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat)))
+    }
+  })
+  
   output$map <- renderLeaflet({
     # Use leaflet() here, and only include aspects of the map that
     # won't need to change dynamically (at least, not unless the
     # entire map is being torn down and recreated).
-    leaflet(quakes) %>% addTiles() %>%
-      fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat))
+    map()
+    # leaflet(map()) %>% addTiles() %>%
+    #   fitBounds(~min(mean_long), ~min(mean_lat), ~max(mean_long), ~max(mean_lat))
+  })
+  
+  observe({
+    # pal <- colorpal()
+
+    leafletProxy("map", data = top_websites_df()) %>%
+      clearShapes() %>%
+      addCircles(lng = ~mean_long, lat = ~mean_lat, radius = 10, weight = 1, color = "#777777",
+                 # fillColor = ~pal(mag),
+                 fillOpacity = 0.7# , 
+                 # popup = ~paste0("<h1>", mag, "</h1>")
+      )
   })
   
   
