@@ -36,14 +36,15 @@ ui <- fluidPage(
            sliderInput("time", "Time Range (Hours of Day)",
                        min = 0, max = 24,
                        value = c(0,24)), 
-           checkboxGroupInput("variable", "Days of Week:",
-                              c("Monday" = "mon",
-                                "Tuesday" = "tues",
-                                "Wednesday" = "wed", 
-                                "Thursday" = "thu", 
-                                "Friday" = "fri", 
-                                "Saturday" = "sat", 
-                                "Sunday" = "sun")), 
+           checkboxGroupInput("days", "Days of Week:",
+                              c("Monday" = "Mon",
+                                "Tuesday" = "Tue",
+                                "Wednesday" = "Wed", 
+                                "Thursday" = "Thu", 
+                                "Friday" = "Fri", 
+                                "Saturday" = "Sat", 
+                                "Sunday" = "Sun"), 
+                              selected = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")), 
            actionButton("Proceed", "Proceed")
     ), 
     column(9, 
@@ -161,7 +162,26 @@ server <- function(input, output, session) {
     dateRangeInput('dateRange',
                    label = 'Date range input:',
                    start = date_range[1], 
-                   end = date_range[2])
+                   end = date_range[2], 
+                   min = date_range[1]#, 
+                   # max = date_range[2]
+                   )
+  })
+  
+  date_range_df <- reactive({
+    
+    if (length(input$history_json) > 0 && length(input$dateRange) > 0){
+      temp <- history()
+      temp <- temp %>% filter(time >= input$dateRange[1] & time <= input$dateRange[2])
+      temp <- temp %>% 
+        mutate(year = year(time), 
+               year_day = yday(time))
+      return(temp)
+      
+    }else{
+      return(data_frame('fail' = character(0)))
+    }
+    
   })
   
   hour_range <- reactive({
@@ -179,7 +199,7 @@ server <- function(input, output, session) {
         temp_year <- temp %>% filter(year == unique(temp$year)[y])
         for (day in 1:length(unique(temp_year$year_day))){
           temp_day <- temp_year %>% filter(year_day == unique(temp_year$year_day)[day])
-          temp_day <- temp_day %>% filter(hour(time) >= input$time[1] & hour(time) <= input$time[2])
+          temp_day <- temp_day %>% filter(hour(time) >= input$time[1] & hour(time) < input$time[2])
           
           if (nrow(hour_filt) == 0){
             hour_filt <- temp_day
@@ -190,15 +210,41 @@ server <- function(input, output, session) {
         }
       }
       
+      
+      # hour_filt <- hour_filt %>% select(-year, -year_day)
+      
       return(hour_filt)
       
     }
     
   })
   
+  days_df <- reactive({
+    
+    if (length(input$history_json) > 0 && length(input$days) > 0){
+      temp <- history()
+      temp <- temp %>% filter(wday(time, label = TRUE) %in% input$days)
+      temp <- temp %>% 
+        mutate(year = year(time), 
+               year_day = yday(time))
+      return(temp)
+      
+    }else{
+      return(data_frame('fail' = character(0)))
+    }
+    
+  })
+  
   top_websites_df <- reactive({
-    #websites <- history()# %>% select(title)
-    websites <- hour_range()
+    if (length(input$history_json) > 0){ #&& length(input$dates) > 0){
+      websites <- history()# %>% select(title)
+      dates_filter <- date_range_df()
+      days_filter <- days_df()
+      hours_filter <- hour_range()
+      websites <- semi_join(hours_filter, dates_filter, by = c('year', 'year_day'))
+      websites <- semi_join(websites, days_filter, by = c('year', 'year_day'))
+      return(websites)
+    }
   })
   
   # # Reactive expression for the data subsetted to what the user selected
@@ -253,7 +299,7 @@ server <- function(input, output, session) {
   
   # https://yihui.shinyapps.io/DT-rows/
   
-  # output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
+  ## output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
   output$top_websites <- DT::renderDataTable({top_websites_df()})
   
   output$bars <- renderPlot({ggplot(data.frame("Top_Words" = c("Python", "R", "Despacito",
