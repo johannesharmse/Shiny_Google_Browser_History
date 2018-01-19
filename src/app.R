@@ -167,9 +167,9 @@ server <- function(input, output, session) {
     dateRangeInput('dateRange',
                    label = 'Date range input:',
                    start = date_range[1], 
-                   end = date_range[2], 
-                   min = date_range[1]#, 
-                   # max = date_range[2]
+                   end = date_range[2] - days(1), 
+                   min = date_range[1], 
+                   max = date_range[2]
                    )
   })
   
@@ -309,6 +309,16 @@ server <- function(input, output, session) {
     }
   })
   
+  websites_display_df <- reactive({
+    if (length(input$history_json) > 0 && 
+        length(input$location_json) > 0){
+      websites_full <- top_websites_df()
+      websites_display <- websites_full %>% 
+        select(title, year, hour)
+      return(websites_display)
+    }
+  })
+  
   # # Reactive expression for the data subsetted to what the user selected
   # filteredData <- reactive({
   #   quakes[quakes$mag >= input$range[1] & quakes$mag <= input$range[2],]
@@ -362,7 +372,7 @@ server <- function(input, output, session) {
   # https://yihui.shinyapps.io/DT-rows/
   
   ## output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
-  output$top_websites <- DT::renderDataTable({top_websites_df()})
+  output$top_websites <- DT::renderDataTable({websites_display_df()}, options = list(pageLength = 5))
   
   output$bars <- renderPlot({ggplot(data.frame("Top_Words" = c("Python", "R", "Despacito",
                                                                "definition", "for", "loop",
@@ -406,7 +416,8 @@ server <- function(input, output, session) {
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){
       return(leaflet(top_websites_df()) %>% addTiles() %>%
-              fitBounds(~min(mean_long), ~min(mean_lat), ~max(mean_long), ~max(mean_lat)))
+              fitBounds(~min(mean_long), ~min(mean_lat), ~max(mean_long), ~max(mean_lat)) %>% 
+               addMarkers(lng = ~mean_long, lat = ~mean_lat, clusterOptions = markerClusterOptions()))
     }else{
       return(leaflet(quakes) %>% addTiles() %>%
                fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat)))
@@ -425,13 +436,14 @@ server <- function(input, output, session) {
   observe({
     # pal <- colorpal()
 
-    leafletProxy("map", data = top_websites_df()) %>%
-      clearShapes() %>%
-      addCircles(lng = ~mean_long, lat = ~mean_lat, radius = 10, weight = 1, color = "#777777",
+    #leafletProxy("map", data = top_websites_df()) %>%
+    #  clearShapes() %>%
+    #  addMarkers(lng = ~mean_long, lat = ~mean_lat, #color = "#777777",
                  # fillColor = ~pal(mag),
-                 fillOpacity = 0.7# , 
-                 # popup = ~paste0("<h1>", mag, "</h1>")
-      )
+                 #fillOpacity = 0.7# , 
+                 # popup = ~paste0("<h1>", mag, "</h1>"
+    #             clusterOptions = markerClusterOptions())
+      #)
   })
   
   
