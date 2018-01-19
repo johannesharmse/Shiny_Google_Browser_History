@@ -261,8 +261,8 @@ server <- function(input, output, session) {
 
           locations_day <- locations_day %>%
             group_by(year, year_day, hour) %>%
-            summarise(mean_lat = mean(lat),
-                      mean_long = mean(long))
+            summarise(mean_lat = nth(x = lat, n = as.integer(n()/2)),
+                      mean_long = nth(x = long, n = as.integer(n()/2)))
 
           if (nrow(location_filt) == 0){
             location_filt <- locations_day
