@@ -27,11 +27,12 @@ ui <- fluidPage(
                                "json", ".json")
            ), 
            fileInput("location_json", 
-                     "Select Chrome Location JOSN File",
+                     "Select Chrome Location JSON File",
                      accept = c("text/json", 
                                 "json", ".json")
            ),  
            h3("Filter Criteria"), 
+           selectizeInput('timezone', label = 'Select time zone', choices = OlsonNames(), selected = "GMT", multiple = FALSE), 
            uiOutput("dates"), 
            sliderInput("time", "Time Range (Hours of Day)",
                        min = 0, max = 24,
@@ -104,6 +105,8 @@ server <- function(input, output, session) {
       temp <- temp %>% 
         mutate(time = as_datetime(as.numeric(time)/1000000))
       
+      attr(temp$time, "tzone") <- input$timezone
+      
     }else{
       temp <- data_frame('time' = character(0), 'title' = character(0), 'url' = character(0))
     }
@@ -126,6 +129,8 @@ server <- function(input, output, session) {
         mutate(time = as_datetime(as.numeric(time)/1000), 
                long = long/10^7, 		
                lat = lat/10^7)
+      
+      attr(temp$time, "tzone") <- input$timezone
       
       temp <- temp %>% 
         mutate(year = year(time), 
@@ -259,21 +264,31 @@ server <- function(input, output, session) {
             year_day %in% temp_day$year_day &
             hour %in% hour(temp_day$time))
 
-          locations_day <- locations_day %>%
-            group_by(year, year_day, hour) %>%
-            summarise(mean_lat = nth(x = lat, n = as.integer(n()/2)),
-                      mean_long = nth(x = long, n = as.integer(n()/2)))
+          if (nrow(locations_day)){
+            locations_day <- locations_day %>%
+              group_by(year, year_day, hour) %>%
+              summarise(mean_lat = ifelse(n() > 0, nth(x = lat, n = ceiling(n()/2)), lat),
+                        mean_long = ifelse(n() > 0, nth(x = long, n = ceiling(n()/2)), long))
 
-          if (nrow(location_filt) == 0){
-            location_filt <- locations_day
-          }else{
-            location_filt <- rbind(location_filt, locations_day)
-          }
+            if (nrow(location_filt) == 0){
+              location_filt <- locations_day
+            }else if(nrow(locations_day) > 0){
+              #locations_day <- locations_day %>% filter(mean_lat)
+              location_filt <- rbind(location_filt, locations_day)
+            }
+          }  
 
 
 
         }
 
+      }
+      
+      for (row in 1:nrow(location_filt)){
+        if (is.na(location_filt[row , 'mean_lat'])){
+          location_filt[row , 'mean_lat'] <- location_filt[row - 1, 'mean_lat']
+          location_filt[row , 'mean_long'] <- location_filt[row - 1, 'mean_long']
+        }
       }
       
       return(location_filt)
@@ -303,7 +318,17 @@ server <- function(input, output, session) {
       # locations <- location()
       #location_filt <- websites[0, ]
       websites <- left_join(websites, locations, by = c('year', 'year_day', 'hour'))
+      for (row in 1:nrow(websites)){
+        if (is.na(websites[row, "mean_lat"])){
+          websites[row, "mean_lat"] = websites[row-1, "mean_lat"]
+          websites[row, "mean_long"] = websites[row-1, "mean_long"]
+        }
+      }
+      
+      websites$id = 1:nrow(websites)
+      
       return(websites)
+      
     }else{
       return(data_frame('mean_lat' = numeric(0), 'mean_long' = numeric(0)))
     }
@@ -385,26 +410,27 @@ server <- function(input, output, session) {
   
   
   # https://yihui.shinyapps.io/DT-radio/
-  output$webpages <- DT::renderDataTable(data.frame("Webpages" = c("https://www.quora.com/profile/Johannes-Harmse", 
-                                                             "https://shiny.rstudio.com/gallery/",
-                                                            "https://www.youtube.com/watch?v=Av3PDFBwVKs",
-                                                             "https://stats.stackexchange.com/questions/239890/how-to-plot-the-log-likelihood-associated-with-each-iteration-of-em-algorithm-an/239927",
-                                                            "https://github.com/johannesharmse",
-                                                            "https://en.wikipedia.org/wiki/Akaike_information_criterion")), 
-                                         escape = FALSE, 
-                                         selection = 'none', 
-                                         server = TRUE, 
-                                         options = list(dom = 't', 
-                                                        paging = TRUE, 
-                                                        odering = TRUE), 
-                                         callback = JS("table.rows().every(function(i, tab, row) {
-          var $this = $(this.node());
-                                                       $this.attr('id', this.data()[0]);
-                                                       $this.addClass('shiny-input-radiogroup');
-});
-                                                       Shiny.unbindAll(table.table().node());
-                                                       Shiny.bindAll(table.table().node());")
-  )
+  output$webpages <- DT::renderDataTable({clicks_df()}, options = list(pageLength = 5))
+    #data.frame("Webpages" = c("https://www.quora.com/profile/Johannes-Harmse", 
+#                                                              "https://shiny.rstudio.com/gallery/",
+#                                                             "https://www.youtube.com/watch?v=Av3PDFBwVKs",
+#                                                              "https://stats.stackexchange.com/questions/239890/how-to-plot-the-log-likelihood-associated-with-each-iteration-of-em-algorithm-an/239927",
+#                                                             "https://github.com/johannesharmse",
+#                                                             "https://en.wikipedia.org/wiki/Akaike_information_criterion")), 
+#                                          escape = FALSE, 
+#                                          selection = 'none', 
+#                                          server = TRUE, 
+#                                          options = list(dom = 't', 
+#                                                         paging = TRUE, 
+#                                                         odering = TRUE), 
+#                                          callback = JS("table.rows().every(function(i, tab, row) {
+#           var $this = $(this.node());
+#                                                        $this.attr('id', this.data()[0]);
+#                                                        $this.addClass('shiny-input-radiogroup');
+# });
+#                                                        Shiny.unbindAll(table.table().node());
+#                                                        Shiny.bindAll(table.table().node());")
+#  )
   
   
   
@@ -415,11 +441,19 @@ server <- function(input, output, session) {
   map <- reactive({
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){
-      return(leaflet(top_websites_df()) %>% addTiles() %>%
-              fitBounds(~min(mean_long), ~min(mean_lat), ~max(mean_long), ~max(mean_lat)) %>% 
-               addMarkers(lng = ~mean_long, lat = ~mean_lat, clusterOptions = markerClusterOptions()))
+      df <- top_websites_df()
+      min_long <- min(df$mean_long)
+      max_long <- max(df$mean_long)
+      min_lat <- min(df$mean_lat)
+      max_lat <- max(df$mean_lat)
+      centre_long <- (min_long + max_long)/2
+      centre_lat <- (min_lat + max_lat)/2
+      return(leaflet(df, width=500, height=400) %>% addTiles() %>% 
+               setView(lng = centre_long, lat = centre_lat, zoom = 18) %>% 
+              fitBounds(min_long, min_lat, max_long, max_lat) %>% 
+               addMarkers(lng = ~mean_long, lat = ~mean_lat, clusterOptions = markerClusterOptions(), clusterId = ~id))
     }else{
-      return(leaflet(quakes) %>% addTiles() %>%
+      return(leaflet(quakes, width=500, height=400) %>% addTiles() %>%
                fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat)))
     }
   })
@@ -433,18 +467,60 @@ server <- function(input, output, session) {
     #   fitBounds(~min(mean_long), ~min(mean_lat), ~max(mean_long), ~max(mean_lat))
   })
   
-  observe({
-    # pal <- colorpal()
-
-    #leafletProxy("map", data = top_websites_df()) %>%
-    #  clearShapes() %>%
-    #  addMarkers(lng = ~mean_long, lat = ~mean_lat, #color = "#777777",
-                 # fillColor = ~pal(mag),
-                 #fillOpacity = 0.7# , 
-                 # popup = ~paste0("<h1>", mag, "</h1>"
-    #             clusterOptions = markerClusterOptions())
-      #)
+  data_of_click <- reactiveValues(clickedMarker=NULL)
+  
+  observeEvent(input$map_marker_click,{
+    data_of_click$clickedMarker <- input$map_marker_click
   })
+  
+  clicks_df <- reactive({
+    if (length(input$history_json) > 0 && 
+        length(input$location_json) > 0){
+      bounds <- plot_boundaries()
+      websites_bounds <- top_websites_df()
+      websites_bounds <- websites_bounds %>%
+        filter(mean_long >= bounds$long[1] &
+                 mean_long <= bounds$long[2] &
+                 mean_lat >= bounds$lat[1] &
+                 mean_lat <= bounds$lat[2])
+      
+      #websites_bounds <- data_frame('long' = unlist(list(0, unlist(bounds$long))), 'lat' = unlist(list(0, bounds$lat)))
+      
+    #}
+    # if (!is.null(data_of_click$clickedMarker)){
+    #   websites_marker <- top_websites_df()
+    #   websites_marker <- websites_marker[unlist(data_of_click$clickedMarker), ]
+    }else{
+      websites_bounds <- data_frame('fail' = numeric(0))
+    }
+    return(websites_bounds)
+  })
+  
+  plot_boundaries <- reactive({
+    #map <- map()
+    if (!is.null(input$map_bounds)){
+    #if (!is.null(map$x$setView[[2]])){
+      # width <- map$width 
+      # height <- map$height 
+      # zoom <- map$x$setView[[2]]
+      # lng <- map$x$setView[[1]][2]
+      # lat <- map$x$setView[[1]][1]
+      # lng_width <- 360 * width / 2^(zoom + 8)
+      # lng_east <- lng - lng_width/2
+      # lng_west <- lng + lng_width/2
+      # lat_height <- 360 * height * cos(lat/180 * pi) / 2^(zoom + 8)
+      # lat_north <- lat + lat_height/2
+      # lat_south <- lat - lat_height/2
+      
+      lat_south <- input$map_bounds['south']
+      lat_north <- input$map_bounds['north']
+      lng_west <- input$map_bounds['west']
+      lng_east <- input$map_bounds['east']
+      
+      return(list('lat' = c(lat_south, lat_north),  'long' = c(lng_west, lng_east)))
+    }
+  })
+
   
   
 }
