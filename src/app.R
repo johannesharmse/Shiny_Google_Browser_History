@@ -46,7 +46,7 @@ ui <- fluidPage(
                                 "Saturday" = "Sat", 
                                 "Sunday" = "Sun"), 
                               selected = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")), 
-           actionButton("Proceed", "Proceed")
+           actionButton("proceed", "Proceed")
     ), 
     column(9, 
     fluidRow(column(4, 
@@ -178,7 +178,7 @@ server <- function(input, output, session) {
                    )
   })
   
-  date_range_df <- reactive({
+  date_range_df <- eventReactive(input$proceed, {
     
     if (length(input$history_json) > 0 && length(input$dateRange) > 0){
       temp <- history()
@@ -194,7 +194,7 @@ server <- function(input, output, session) {
     
   })
   
-  hour_range <- reactive({
+  hour_range <- eventReactive(input$proceed, {
     
     if (length(input$history_json) > 0){
       temp <- history()
@@ -229,7 +229,7 @@ server <- function(input, output, session) {
     
   })
   
-  days_df <- reactive({
+  days_df <- eventReactive(input$proceed, {
     
     if (length(input$history_json) > 0 && length(input$days) > 0){
       temp <- history()
@@ -245,7 +245,7 @@ server <- function(input, output, session) {
     
   })
   
-  browser_locations <- reactive({
+  browser_locations <- eventReactive(input$proceed, {
     if (length(input$history_json) > 0 && length(input$location_json)){
       websites <- top_websites()
       locations <- location()
@@ -296,7 +296,7 @@ server <- function(input, output, session) {
   })
   
   
-  top_websites <- reactive({
+  top_websites <- eventReactive(input$proceed, {
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){ #&& length(input$dates) > 0){
       websites <- history()# %>% select(title)
@@ -310,7 +310,7 @@ server <- function(input, output, session) {
     }
   })
   
-  top_websites_df <- reactive({
+  top_websites_df <- eventReactive(input$proceed, {
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){
       websites <- top_websites()
@@ -334,7 +334,7 @@ server <- function(input, output, session) {
     }
   })
   
-  websites_display_df <- reactive({
+  websites_display_df <- eventReactive(input$proceed, {
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){
       websites_full <- top_websites_df()
@@ -438,20 +438,20 @@ server <- function(input, output, session) {
   #  str(sapply(month.abb, function(i) input[[i]]))
   #})
   
-  map <- reactive({
+  map <- eventReactive(input$proceed, {
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){
       df <- top_websites_df()
-      min_long <- min(df$mean_long)
-      max_long <- max(df$mean_long)
-      min_lat <- min(df$mean_lat)
-      max_lat <- max(df$mean_lat)
-      centre_long <- (min_long + max_long)/2
-      centre_lat <- (min_lat + max_lat)/2
+      # min_long <- min(df$mean_long)
+      # max_long <- max(df$mean_long)
+      # min_lat <- min(df$mean_lat)
+      # max_lat <- max(df$mean_lat)
+      # centre_long <- (min_long + max_long)/2
+      # centre_lat <- (min_lat + max_lat)/2
       return(leaflet(df, width=500, height=400) %>% addTiles() %>% 
-               setView(lng = centre_long, lat = centre_lat, zoom = 18) %>% 
-              fitBounds(min_long, min_lat, max_long, max_lat) %>% 
-               addMarkers(lng = ~mean_long, lat = ~mean_lat, clusterOptions = markerClusterOptions(), clusterId = ~id))
+               #setView(lng = centre_long, lat = centre_lat, zoom = 18) %>% 
+              #fitBounds(min_long, min_lat, max_long, max_lat) %>% 
+               addMarkers(lng = ~mean_long, lat = ~mean_lat, clusterOptions = markerClusterOptions(spiderfyOnMaxZoom = FALSE), clusterId = ~id))
     }else{
       return(leaflet(quakes, width=500, height=400) %>% addTiles() %>%
                fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat)))
@@ -520,6 +520,14 @@ server <- function(input, output, session) {
       return(list('lat' = c(lat_south, lat_north),  'long' = c(lng_west, lng_east)))
     }
   })
+  
+  # proceed_check <- reactive({
+  #   if (input$proceed > 0){
+  #     history <- history()
+  #     location <- location()
+  #     
+  #   }
+  # })
 
   
   
