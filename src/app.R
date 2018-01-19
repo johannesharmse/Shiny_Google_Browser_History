@@ -339,6 +339,7 @@ server <- function(input, output, session) {
         length(input$location_json) > 0){
       websites_full <- top_websites_df()
       websites_display <- websites_full %>% 
+        mutate(title = iconv(title, to = "ASCII//TRANSLIT")) %>% 
         select(title, year, hour)
       return(websites_display)
     }
@@ -410,7 +411,10 @@ server <- function(input, output, session) {
   
   
   # https://yihui.shinyapps.io/DT-radio/
-  output$webpages <- DT::renderDataTable({clicks_df()}, options = list(pageLength = 5))
+  output$webpages <- DT::renderDataTable({clicks_df() #data_frame('searching' = unlist(list(0, input$top_websites_search)))
+    }
+    
+    , options = list(pageLength = 5))
     #data.frame("Webpages" = c("https://www.quora.com/profile/Johannes-Harmse", 
 #                                                              "https://shiny.rstudio.com/gallery/",
 #                                                             "https://www.youtube.com/watch?v=Av3PDFBwVKs",
