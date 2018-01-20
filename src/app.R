@@ -55,7 +55,8 @@ ui <- fluidPage(
                     DT::dataTableOutput('search_term_table'), 
                     actionButton('remove_terms', 'Remove selected terms from search'), 
            DT::dataTableOutput('top_websites'), # https://yihui.shinyapps.io/DT-rows/
-           DT::dataTableOutput('webpages')), 
+           DT::dataTableOutput('webpages')
+           ), 
     
     column(5, 
            leafletOutput("map"))), 
@@ -250,7 +251,7 @@ server <- function(input, output, session) {
   })
   
   browser_locations <- eventReactive(input$proceed, {
-    if (length(input$history_json) > 0 && length(input$location_json)){
+    if (length(input$history_json) > 0 && length(input$location_json) > 0){
       websites <- top_websites()
       locations <- location()
       
@@ -339,8 +340,8 @@ server <- function(input, output, session) {
   })
   
   websites_display_df <- eventReactive(input$proceed, {
-    if (length(input$history_json) > 0 && 
-        length(input$location_json) > 0){
+    if (!is.null(input$history_json) && 
+        !is.null(input$location_json)){
       websites_full <- top_websites_df()
       websites_display <- websites_full %>% 
         mutate(title = tolower(iconv(title, to = "ASCII//TRANSLIT"))) %>% 
@@ -360,6 +361,10 @@ server <- function(input, output, session) {
       websites_display_df() %>% 
         filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
                      x = title, ignore.case = TRUE))
+    }else if(is.null(input$history_json) || 
+             is.null(input$location_json) || 
+             input$proceed == 0){
+      data_frame('Webpages' = c('No data available'))
     }else{
       websites_display_df()
     }
@@ -380,12 +385,13 @@ server <- function(input, output, session) {
   output$webpages <- DT::renderDataTable({clicks_df()
     }, options = list(pageLength = 5))
   
-  map <- eventReactive((!is.null(search_list$terms) || (length(input$history_json) > 0 && length(input$location_json) > 0)), {
+  map <- reactive({ #(!is.null(search_list$terms) || (length(input$history_json) > 0 && length(input$location_json) > 0)), {
     #((!is.null(input$top_websites_search) && 
     #                                            any(unlist(input$top_websites_search) != "") && 
     #                                            length(unlist(input$top_websites_search)) > 0)), {
     if (length(input$history_json) > 0 && 
-        length(input$location_json) > 0){
+        length(input$location_json) > 0 && 
+        input$proceed > 0){
       
       if (length(search_list$terms) > 0){
         df <- top_websites_df() %>% 
@@ -420,8 +426,9 @@ server <- function(input, output, session) {
   })
   
   clicks_df <- reactive({
-    if (input$history_json > 0 && 
-        input$location_json > 0){
+    if (!is.null(input$history_json) && 
+        !is.null(input$location_json) && 
+        input$proceed > 0){
       bounds <- plot_boundaries()
       websites_bounds <- top_websites_df()
       websites_bounds <- websites_bounds %>%
@@ -437,7 +444,7 @@ server <- function(input, output, session) {
     #   websites_marker <- top_websites_df()
     #   websites_marker <- websites_marker[unlist(data_of_click$clickedMarker), ]
     }else{
-      websites_bounds <- data_frame('fail' = numeric(0))
+      websites_bounds <- data_frame('Websites' = c('No data available'))
     }
     return(websites_bounds)
   })
