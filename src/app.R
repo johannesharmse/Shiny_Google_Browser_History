@@ -346,13 +346,25 @@ server <- function(input, output, session) {
         mutate(title = tolower(iconv(title, to = "ASCII//TRANSLIT"))) %>% 
         select(title, year, hour)
       return(websites_display)
+    }else{
+      return(data_frame('Websites' = c('No data available')))
     }
   })
   
   # https://yihui.shinyapps.io/DT-rows/
   
   ## output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
-  output$top_websites <- DT::renderDataTable({websites_display_df()}, options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
+  output$top_websites <- DT::renderDataTable({
+    if (!is.null(search_list$terms) && 
+        length(search_list$terms) > 0){
+      websites_display_df() %>% 
+        filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
+                     x = title, ignore.case = TRUE))
+    }else{
+      websites_display_df()
+    }
+    }, 
+      options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
   
   output$bars <- renderPlot({ggplot(data.frame("Top_Words" = c("Python", "R", "Despacito",
                                                                "definition", "for", "loop",
@@ -368,15 +380,20 @@ server <- function(input, output, session) {
   output$webpages <- DT::renderDataTable({clicks_df()
     }, options = list(pageLength = 5))
   
-  map <- eventReactive(((!is.null(input$top_websites_search) && 
-                                                any(unlist(input$top_websites_search) != "") && 
-                                                length(unlist(input$top_websites_search)) > 0)), {
+  map <- eventReactive((!is.null(search_list$terms) || (length(input$history_json) > 0 && length(input$location_json) > 0)), {
+    #((!is.null(input$top_websites_search) && 
+    #                                            any(unlist(input$top_websites_search) != "") && 
+    #                                            length(unlist(input$top_websites_search)) > 0)), {
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){
       
-      df <- top_websites_df() %>% 
-        filter(grepl(pattern = paste0(unlist(input$top_websites_search)), x = title, ignore.case = TRUE))
-      
+      if (length(search_list$terms) > 0){
+        df <- top_websites_df() %>% 
+          filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), x = title, ignore.case = TRUE))
+      }else{
+        df <- top_websites_df()
+      }
+        
       return(leaflet(df, width=500, height=400) %>% addTiles() %>% 
                #setView(lng = centre_long, lat = centre_lat, zoom = 18) %>% 
               #fitBounds(min_long, min_lat, max_long, max_lat) %>% 
@@ -403,8 +420,8 @@ server <- function(input, output, session) {
   })
   
   clicks_df <- reactive({
-    if (length(input$history_json) > 0 && 
-        length(input$location_json) > 0){
+    if (input$history_json > 0 && 
+        input$location_json > 0){
       bounds <- plot_boundaries()
       websites_bounds <- top_websites_df()
       websites_bounds <- websites_bounds %>%
@@ -425,7 +442,7 @@ server <- function(input, output, session) {
     return(websites_bounds)
   })
   
-  plot_boundaries <- reactive({
+  plot_boundaries <- eventReactive(input$map_bounds, {
     #map <- map()
     if (!is.null(input$map_bounds)){
       
@@ -436,6 +453,7 @@ server <- function(input, output, session) {
       
       return(list('lat' = c(lat_south, lat_north),  'long' = c(lng_west, lng_east)))
     }
+    
   })
   
   search_list <- reactiveValues(terms = NULL)
