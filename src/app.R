@@ -340,10 +340,19 @@ server <- function(input, output, session) {
     }
   })
   
-  websites_display_df <- eventReactive(input$proceed, {
+  websites_display_df <- reactive({
     if (!is.null(input$history_json) && 
-        !is.null(input$location_json)){
+        !is.null(input$location_json) && 
+        input$proceed > 0){
       websites_full <- top_websites_df()
+      
+      bounds <- plot_boundaries()
+      websites_full <- websites_full %>%
+        filter(mean_long >= bounds$long[1] &
+                 mean_long <= bounds$long[2] &
+                 mean_lat >= bounds$lat[1] &
+                 mean_lat <= bounds$lat[2])
+      
       websites_display <- websites_full %>% 
         mutate(title = tolower(iconv(title, to = "ASCII//TRANSLIT"))) %>% 
         select(title, year, hour, url)
@@ -384,23 +393,6 @@ server <- function(input, output, session) {
         }
       }
       
-      # page <- sapply(1:nrow(websites_display), function(x) 
-      #   if_else(is.na(websites_display[[x, 'url']]), 
-      #           NA, 
-      #           if_else(length(str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]]) > 0, 
-      #           substr(websites_display[[x, 'url']], 
-      #                  str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]][1, 'start'] + 3, 
-      #                  if_else(str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]][1, 'end'] - 1 > 
-      #                            str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]][1, 'start'] + 3, 
-      #                          str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]][1, 'end'] - 1, 
-      #                          as.double(nchar(websites_display[[x, 'url']])))), 
-      #           if_else(length(str_locate_all(websites_display[[x, 'url']], '//')[[1]]) > 0, 
-      #                   substr(websites_display[[x, 'url']], 
-      #                          str_locate_all(websites_display[[x, 'url']], '//')[[1]][1, 'start'] + 3, 
-      #                          as.double(nchar(websites_display[[x, 'url']]))), 
-      #                   websites_display[[x, 'url']]))))
-      # 
-      # websites_display$page <- page
       
       return(websites_display)
       
@@ -415,15 +407,26 @@ server <- function(input, output, session) {
   output$top_websites <- DT::renderDataTable({
     if (!is.null(search_list$terms) && 
         length(search_list$terms) > 0){
-      websites_display_df() %>% 
+      websites_display <- websites_display_df() %>%
+      #clicks_df() %>% 
         filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
                      x = title, ignore.case = TRUE))
+      
+      websites_display %>% 
+        group_by(page) %>% 
+        summarise(visits = n())
+      
     }else if(is.null(input$history_json) || 
              is.null(input$location_json) || 
              input$proceed == 0){
       data_frame('Webpages' = c('No data available'))
     }else{
-      websites_display_df()
+      #clicks_df()
+      websites_display <- websites_display_df()
+      
+      websites_display %>% 
+        group_by(page) %>% 
+        summarise(visits = n())
     }
     }, 
       options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
@@ -439,7 +442,30 @@ server <- function(input, output, session) {
   
   
   # https://yihui.shinyapps.io/DT-radio/
-  output$webpages <- DT::renderDataTable({clicks_df()
+  output$webpages <- DT::renderDataTable({
+    if (!is.null(search_list$terms) && 
+        length(search_list$terms) > 0){
+      websites_display <- websites_display_df() %>%
+        #clicks_df() %>% 
+        filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
+                     x = title, ignore.case = TRUE))
+      
+      websites_display #%>% 
+        #select(time, title, url)
+      
+    }else if(is.null(input$history_json) || 
+             is.null(input$location_json) || 
+             input$proceed == 0){
+      data_frame('Webpages' = c('No data available'))
+    }else{
+      #clicks_df()
+      websites_display <- websites_display_df()
+      
+      websites_display #%>% 
+        #select(time, title, url)
+      
+    }
+
     }, options = list(pageLength = 5))
   
   map <- reactive({ #(!is.null(search_list$terms) || (length(input$history_json) > 0 && length(input$location_json) > 0)), {
@@ -486,13 +512,15 @@ server <- function(input, output, session) {
     if (!is.null(input$history_json) && 
         !is.null(input$location_json) && 
         input$proceed > 0){
-      bounds <- plot_boundaries()
-      websites_bounds <- top_websites_df()
-      websites_bounds <- websites_bounds %>%
-        filter(mean_long >= bounds$long[1] &
-                 mean_long <= bounds$long[2] &
-                 mean_lat >= bounds$lat[1] &
-                 mean_lat <= bounds$lat[2])
+      # bounds <- plot_boundaries()
+      # websites_bounds <- top_websites_df()
+      # websites_bounds <- websites_bounds %>%
+      #   filter(mean_long >= bounds$long[1] &
+      #            mean_long <= bounds$long[2] &
+      #            mean_lat >= bounds$lat[1] &
+      #            mean_lat <= bounds$lat[2])
+      
+      websites_bounds <- websites_display_df()
       
       #websites_bounds <- data_frame('long' = unlist(list(0, unlist(bounds$long))), 'lat' = unlist(list(0, bounds$lat)))
       
