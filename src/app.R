@@ -339,7 +339,7 @@ server <- function(input, output, session) {
         length(input$location_json) > 0){
       websites_full <- top_websites_df()
       websites_display <- websites_full %>% 
-        mutate(title = iconv(title, to = "ASCII//TRANSLIT")) %>% 
+        mutate(title = tolower(iconv(title, to = "ASCII//TRANSLIT"))) %>% 
         select(title, year, hour)
       return(websites_display)
     }
@@ -398,7 +398,7 @@ server <- function(input, output, session) {
   # https://yihui.shinyapps.io/DT-rows/
   
   ## output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
-  output$top_websites <- DT::renderDataTable({websites_display_df()}, options = list(pageLength = 5))
+  output$top_websites <- DT::renderDataTable({websites_display_df()}, options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
   
   output$bars <- renderPlot({ggplot(data.frame("Top_Words" = c("Python", "R", "Despacito",
                                                                "definition", "for", "loop",
@@ -442,10 +442,13 @@ server <- function(input, output, session) {
   #  str(sapply(month.abb, function(i) input[[i]]))
   #})
   
-  map <- eventReactive(input$proceed, {
+  map <- eventReactive(((!is.null(input$top_websites_search) && 
+                                                any(unlist(input$top_websites_search) != "") && 
+                                                length(unlist(input$top_websites_search)) > 0)), {
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){
-      df <- top_websites_df()
+      df <- top_websites_df() %>% 
+        filter(grepl(pattern = paste0(unlist(input$top_websites_search)), x = title, ignore.case = TRUE))
       # min_long <- min(df$mean_long)
       # max_long <- max(df$mean_long)
       # min_lat <- min(df$mean_lat)
