@@ -50,6 +50,9 @@ ui <- fluidPage(
     ), 
     column(9, 
     fluidRow(column(4, 
+                    textInput('search_terms', 'Search phrases', placeholder = 'Add a search phrase'), 
+                    actionButton('add_term', 'Add phrase'), 
+                    DT::dataTableOutput('search_term_table'), 
            DT::dataTableOutput('top_websites'), # https://yihui.shinyapps.io/DT-rows/
            DT::dataTableOutput('webpages')), 
     
@@ -506,18 +509,6 @@ server <- function(input, output, session) {
   plot_boundaries <- reactive({
     #map <- map()
     if (!is.null(input$map_bounds)){
-    #if (!is.null(map$x$setView[[2]])){
-      # width <- map$width 
-      # height <- map$height 
-      # zoom <- map$x$setView[[2]]
-      # lng <- map$x$setView[[1]][2]
-      # lat <- map$x$setView[[1]][1]
-      # lng_width <- 360 * width / 2^(zoom + 8)
-      # lng_east <- lng - lng_width/2
-      # lng_west <- lng + lng_width/2
-      # lat_height <- 360 * height * cos(lat/180 * pi) / 2^(zoom + 8)
-      # lat_north <- lat + lat_height/2
-      # lat_south <- lat - lat_height/2
       
       lat_south <- input$map_bounds['south']
       lat_north <- input$map_bounds['north']
@@ -527,6 +518,26 @@ server <- function(input, output, session) {
       return(list('lat' = c(lat_south, lat_north),  'long' = c(lng_west, lng_east)))
     }
   })
+  
+  search_list <- reactiveValues(terms = NULL)
+  
+  observeEvent(input$add_term, {
+    search_list$terms <- unlist(list(search_list$terms, input$search_terms))
+  })
+  
+  add_term <- eventReactive(input$add_term, {
+    if (!is.null(search_list$terms)){
+      search_df <- data_frame('Search terms' = search_list$terms)
+    }else{
+      search_df <- data_frame('Search terms' = c('No search phrases selected'))
+    }
+    
+    return(search_df)
+    
+  })
+  
+  output$search_term_table <- DT::renderDataTable({add_term()}, options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
+  
   
   # proceed_check <- reactive({
   #   if (input$proceed > 0){
