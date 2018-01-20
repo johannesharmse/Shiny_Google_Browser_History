@@ -53,6 +53,7 @@ ui <- fluidPage(
                     textInput('search_terms', 'Search phrases', placeholder = 'Add a search phrase'), 
                     actionButton('add_term', 'Add phrase'), 
                     DT::dataTableOutput('search_term_table'), 
+                    actionButton('remove_terms', 'Remove selected terms from search'), 
            DT::dataTableOutput('top_websites'), # https://yihui.shinyapps.io/DT-rows/
            DT::dataTableOutput('webpages')), 
     
@@ -525,7 +526,13 @@ server <- function(input, output, session) {
     search_list$terms <- unlist(list(search_list$terms, input$search_terms))
   })
   
-  add_term <- eventReactive(input$add_term, {
+  observeEvent(input$remove_terms, {
+    if (length(input$search_term_table_rows_selected) > 0){
+      search_list$terms <- search_list$terms[-input$search_term_table_rows_selected]
+    }
+  })
+  
+  search_terms <- eventReactive(search_list$terms, {
     if (!is.null(search_list$terms)){
       search_df <- data_frame('Search terms' = search_list$terms)
     }else{
@@ -536,17 +543,10 @@ server <- function(input, output, session) {
     
   })
   
-  output$search_term_table <- DT::renderDataTable({add_term()}, options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
+  output$search_term_table <- DT::renderDataTable({search_terms()}, options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
   
   
-  # proceed_check <- reactive({
-  #   if (input$proceed > 0){
-  #     history <- history()
-  #     location <- location()
-  #     
-  #   }
-  # })
-
+  
   
   
 }
