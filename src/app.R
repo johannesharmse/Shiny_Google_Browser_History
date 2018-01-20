@@ -340,13 +340,15 @@ server <- function(input, output, session) {
     }
   })
   
-  websites_display_df <- reactive({
+  websites_display_df <- eventReactive(input$map_bounds, {
     if (!is.null(input$history_json) && 
         !is.null(input$location_json) && 
-        input$proceed > 0){
-      websites_full <- top_websites_df()
+        input$proceed > 0 && 
+        !is.null(plot_boundaries())){
       
+      websites_full <- top_websites_df()
       bounds <- plot_boundaries()
+      
       websites_full <- websites_full %>%
         filter(mean_long >= bounds$long[1] &
                  mean_long <= bounds$long[2] &
@@ -365,34 +367,37 @@ server <- function(input, output, session) {
       #                         title))
       
       
-      for(row in 1:nrow(websites_display)){
-        if (is.na(websites_display[[row, 'url']])){
-          websites_display[row, 'page'] <- NA
-        }else{
-          if(length(str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]]) > 0){
-            if((str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]][1, 'end'] - 1) > 
-              (str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]][1, 'start'] + 2)){
-              end <- str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]][1, 'end'] - 1
-            }else{
-              end <- as.double(nchar(websites_display[[row, 'url']]))
-            }
-            
-            websites_display[row, 'page'] <- substr(websites_display[[row, 'url']], 
-                   (str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]][1, 'start'] + 2), 
-                   end)
+      if (nrow(websites_display) > 0){
+      
+        for(row in 1:nrow(websites_display)){
+          if (is.na(websites_display[[row, 'url']])){
+            websites_display[row, 'page'] <- NA
           }else{
-            if(length(str_locate_all(websites_display[[row, 'url']], '//')[[1]]) > 0){
+            if(length(str_locate_all(websites_display[[row, 'url']], '//.*?/')[[1]]) > 0){
+              if((str_locate_all(websites_display[[row, 'url']], '//.*?/')[[1]][1, 'end'] - 1) > 
+                (str_locate_all(websites_display[[row, 'url']], '//.*?/')[[1]][1, 'start'] + 2)){
+                end <- str_locate_all(websites_display[[row, 'url']], '//.*?/')[[1]][1, 'end'] - 1
+              }else{
+                end <- as.double(nchar(websites_display[[row, 'url']]))
+              }
+              
               websites_display[row, 'page'] <- substr(websites_display[[row, 'url']], 
-                     str_locate_all(websites_display[[row, 'url']], '//')[[1]][1, 'start'] + 2, 
-                     as.double(nchar(websites_display[[row, 'url']])))
+                     (str_locate_all(websites_display[[row, 'url']], '//.*?/')[[1]][1, 'start'] + 2), 
+                     end)
             }else{
-              websites_display[row, 'page'] <- websites_display[[row, 'url']]
+              if(length(str_locate_all(websites_display[[row, 'url']], '//')[[1]]) > 0){
+                websites_display[row, 'page'] <- substr(websites_display[[row, 'url']], 
+                       str_locate_all(websites_display[[row, 'url']], '//')[[1]][1, 'start'] + 2, 
+                       as.double(nchar(websites_display[[row, 'url']])))
+              }else{
+                websites_display[row, 'page'] <- websites_display[[row, 'url']]
+              }
+              
             }
-            
           }
         }
+        
       }
-      
       
       return(websites_display)
       
@@ -406,7 +411,10 @@ server <- function(input, output, session) {
   ## output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
   output$top_websites <- DT::renderDataTable({
     if (!is.null(search_list$terms) && 
-        length(search_list$terms) > 0){
+        length(search_list$terms) > 0 && 
+        !is.null(websites_display_df()) && 
+                 nrow(websites_display_df()) > 1){
+      
       websites_display <- websites_display_df() %>%
       #clicks_df() %>% 
         filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
@@ -414,20 +422,46 @@ server <- function(input, output, session) {
       
       websites_display %>% 
         group_by(page) %>% 
-        summarise(visits = n())
+        summarise(visits = n()) %>% 
+        arrange(desc(visits))
       
-    }else if(is.null(input$history_json) || 
-             is.null(input$location_json) || 
-             input$proceed == 0){
-      data_frame('Webpages' = c('No data available'))
-    }else{
+    }else if(!is.null(input$history_json) && 
+             !is.null(input$location_json) && 
+             !is.null(input$proceed) && 
+             input$proceed > 0 && 
+             !is.null(input$map_bounds) && 
+             !is.null(websites_display_df()) && 
+             nrow(websites_display_df()) > 1){
       #clicks_df()
       websites_display <- websites_display_df()
       
       websites_display %>% 
         group_by(page) %>% 
-        summarise(visits = n())
+        summarise(visits = n()) %>% 
+        arrange(desc(visits))
+      
+      #websites_display #%>% 
+      ##select(time, title, url)
+      
+    }else{
+      data_frame('Webpages' = c('No data available'))
     }
+    
+    
+    # else if(is.null(input$history_json) || 
+    #          is.null(input$location_json) || 
+    #          input$proceed == 0 || 
+    #          is.null(input$map_bounds)){
+    #   data_frame('Webpages' = c('No data available'))
+    # }else{
+    #   #clicks_df()
+    #   websites_display <- websites_display_df()
+    #   
+    #   websites_display %>% 
+    #     group_by(page) %>% 
+    #     summarise(visits = n()) %>% 
+    #     arrange(desc(visits))
+    # }
     }, 
       options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
   
@@ -453,17 +487,21 @@ server <- function(input, output, session) {
       websites_display #%>% 
         #select(time, title, url)
       
-    }else if(is.null(input$history_json) || 
-             is.null(input$location_json) || 
-             input$proceed == 0){
-      data_frame('Webpages' = c('No data available'))
-    }else{
+    }else if(!is.null(input$history_json) && 
+             !is.null(input$location_json) && 
+             !is.null(input$proceed) && 
+             (input$proceed > 0) && 
+             !is.null(input$map_bounds) && 
+             !is.null(websites_display_df()) && 
+             nrow(websites_display_df()) > 1){
       #clicks_df()
       websites_display <- websites_display_df()
       
       websites_display #%>% 
-        #select(time, title, url)
+      #select(time, title, url)
       
+    }else{
+      data_frame('Webpages' = c('No data available'))
     }
 
     }, options = list(pageLength = 5))
