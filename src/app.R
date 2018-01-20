@@ -17,7 +17,7 @@ options(shiny.maxRequestSize=100*1024^2)
 time_range_start <- NULL
 time_range_end <- NULL
 
-ui <- fluidPage(
+ui <- fluidPage(theme = "bootstrap.css",
   h2("Google Chrome History Assistant"), 
   br(), 
   fluidRow(
