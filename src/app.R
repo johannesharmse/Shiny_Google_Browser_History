@@ -101,7 +101,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  history <- reactive({
+  history <- eventReactive(input$history_json, {
     if (length(input$history_json) > 0){
       temp <- fromJSON(input$history_json$datapath)
       temp <- temp$`Browser History`
@@ -124,7 +124,7 @@ server <- function(input, output, session) {
     
   })
   
-  location <- reactive({
+  location <- eventReactive(input$location_json, {
     if (length(input$location_json) > 0){
       temp <- fromJSON(input$location_json$datapath)
       temp <- temp$locations
@@ -163,7 +163,7 @@ server <- function(input, output, session) {
     
   })
   
-  time_range <- reactive({
+  time_range <- eventReactive(input$history_json, {
     if (length(input$history_json) > 0){
       temp <- history()
       time_min <- min(temp$time)
@@ -489,11 +489,12 @@ server <- function(input, output, session) {
       websites_plot <- websites_display %>% 
         group_by(page) %>% 
         summarise(visits = n()) %>% 
-        arrange(desc(visits)) %>% 
-        top_n(n = 10, wt = visits)
+        arrange(desc(visits))
       
-      plot <- ggplot(data = websites_plot, aes(x = page, y = visits, colour = 'blue')) + 
-        geom_bar(stat = "identity") + 
+      websites_plot <- websites_plot[1:10, ]
+      
+      plot <- ggplot(data = websites_plot, aes(x = page, y = visits)) + 
+        geom_bar(fill = 'blue', stat = "identity") + 
         labs(title = 'Most frequently visited websites', 
              x = 'Website', 
              y = 'Number of Visits')
