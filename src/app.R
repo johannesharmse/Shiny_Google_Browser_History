@@ -10,6 +10,7 @@ library(DT)
 #library(rjson)
 library(jsonlite)
 library(lubridate)
+library(stringr)
 
 options(shiny.maxRequestSize=100*1024^2) 
 
@@ -345,8 +346,64 @@ server <- function(input, output, session) {
       websites_full <- top_websites_df()
       websites_display <- websites_full %>% 
         mutate(title = tolower(iconv(title, to = "ASCII//TRANSLIT"))) %>% 
-        select(title, year, hour)
+        select(title, year, hour, url)
+      
+      # websites_display <- websites_display %>% 
+      #   mutate(page = if_else(!is.na(substring(title, str_locate(title, '-')[ , 'end'])), 
+      #                         substring(title, 
+      #                                   first = str_locate(title, '-')[ , 'end'] + 1, 
+      #                                           last = nchar(title)), 
+      #                         title))
+      
+      
+      for(row in 1:nrow(websites_display)){
+        if (is.na(websites_display[[row, 'url']])){
+          websites_display[row, 'page'] <- NA
+        }else{
+          if(length(str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]]) > 0){
+            if((str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]][1, 'end'] - 1) > 
+              (str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]][1, 'start'] + 2)){
+              end <- str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]][1, 'end'] - 1
+            }else{
+              end <- as.double(nchar(websites_display[[row, 'url']]))
+            }
+            
+            websites_display[row, 'page'] <- substr(websites_display[[row, 'url']], 
+                   (str_locate_all(websites_display[[row, 'url']], '//.*/')[[1]][1, 'start'] + 2), 
+                   end)
+          }else{
+            if(length(str_locate_all(websites_display[[row, 'url']], '//')[[1]]) > 0){
+              websites_display[row, 'page'] <- substr(websites_display[[row, 'url']], 
+                     str_locate_all(websites_display[[row, 'url']], '//')[[1]][1, 'start'] + 2, 
+                     as.double(nchar(websites_display[[row, 'url']])))
+            }else{
+              websites_display[row, 'page'] <- websites_display[[row, 'url']]
+            }
+            
+          }
+        }
+      }
+      
+      # page <- sapply(1:nrow(websites_display), function(x) 
+      #   if_else(is.na(websites_display[[x, 'url']]), 
+      #           NA, 
+      #           if_else(length(str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]]) > 0, 
+      #           substr(websites_display[[x, 'url']], 
+      #                  str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]][1, 'start'] + 3, 
+      #                  if_else(str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]][1, 'end'] - 1 > 
+      #                            str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]][1, 'start'] + 3, 
+      #                          str_locate_all(websites_display[[x, 'url']], '//.*/')[[1]][1, 'end'] - 1, 
+      #                          as.double(nchar(websites_display[[x, 'url']])))), 
+      #           if_else(length(str_locate_all(websites_display[[x, 'url']], '//')[[1]]) > 0, 
+      #                   substr(websites_display[[x, 'url']], 
+      #                          str_locate_all(websites_display[[x, 'url']], '//')[[1]][1, 'start'] + 3, 
+      #                          as.double(nchar(websites_display[[x, 'url']]))), 
+      #                   websites_display[[x, 'url']]))))
+      # 
+      # websites_display$page <- page
+      
       return(websites_display)
+      
     }else{
       return(data_frame('Websites' = c('No data available')))
     }
