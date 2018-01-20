@@ -349,56 +349,6 @@ server <- function(input, output, session) {
     }
   })
   
-  # # Reactive expression for the data subsetted to what the user selected
-  # filteredData <- reactive({
-  #   quakes[quakes$mag >= input$range[1] & quakes$mag <= input$range[2],]
-  # })
-  # 
-  # # This reactive expression represents the palette function,
-  # # which changes as the user makes selections in UI.
-  # colorpal <- reactive({
-  #   colorNumeric(input$colors, quakes$mag)
-  # })
-  # 
-  # output$map <- renderLeaflet({
-  #   # Use leaflet() here, and only include aspects of the map that
-  #   # won't need to change dynamically (at least, not unless the
-  #   # entire map is being torn down and recreated).
-  #   leaflet(quakes) %>% addTiles() %>%
-  #     fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat))
-  # })
-  # 
-  # # Incremental changes to the map (in this case, replacing the
-  # # circles when a new color is chosen) should be performed in
-  # # an observer. Each independent set of things that can change
-  # # should be managed in its own observer.
-  # observe({
-  #   pal <- colorpal()
-  #   
-  #   leafletProxy("map", data = filteredData()) %>%
-  #     clearShapes() %>%
-  #     addCircles(radius = ~10^mag/10, weight = 1, color = "#777777",
-  #                fillColor = ~pal(mag), fillOpacity = 0.7, popup = ~paste0("<h1>", mag, "</h1>")
-  #     )
-  # })
-  # 
-  # # Use a separate observer to recreate the legend as needed.
-  # observe({
-  #   proxy <- leafletProxy("map", data = quakes)
-  #   
-  #   # Remove any existing legend, and only if the legend is
-  #   # enabled, create a new one.
-  #   proxy %>% clearControls()
-  #   if (input$legend) {
-  #     pal <- colorpal()
-  #     proxy %>% addLegend(position = "bottomright",
-  #                         pal = pal, values = ~mag
-  #     )
-  #   }
-  # })
-  
-  #output$table <- renderDataTable(iris)
-  
   # https://yihui.shinyapps.io/DT-rows/
   
   ## output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
@@ -415,50 +365,18 @@ server <- function(input, output, session) {
   
   
   # https://yihui.shinyapps.io/DT-radio/
-  output$webpages <- DT::renderDataTable({clicks_df() #data_frame('searching' = unlist(list(0, input$top_websites_search)))
-    }
-    
-    , options = list(pageLength = 5))
-    #data.frame("Webpages" = c("https://www.quora.com/profile/Johannes-Harmse", 
-#                                                              "https://shiny.rstudio.com/gallery/",
-#                                                             "https://www.youtube.com/watch?v=Av3PDFBwVKs",
-#                                                              "https://stats.stackexchange.com/questions/239890/how-to-plot-the-log-likelihood-associated-with-each-iteration-of-em-algorithm-an/239927",
-#                                                             "https://github.com/johannesharmse",
-#                                                             "https://en.wikipedia.org/wiki/Akaike_information_criterion")), 
-#                                          escape = FALSE, 
-#                                          selection = 'none', 
-#                                          server = TRUE, 
-#                                          options = list(dom = 't', 
-#                                                         paging = TRUE, 
-#                                                         odering = TRUE), 
-#                                          callback = JS("table.rows().every(function(i, tab, row) {
-#           var $this = $(this.node());
-#                                                        $this.attr('id', this.data()[0]);
-#                                                        $this.addClass('shiny-input-radiogroup');
-# });
-#                                                        Shiny.unbindAll(table.table().node());
-#                                                        Shiny.bindAll(table.table().node());")
-#  )
-  
-  
-  
-  # output$sel = renderPrint({
-  #  str(sapply(month.abb, function(i) input[[i]]))
-  #})
+  output$webpages <- DT::renderDataTable({clicks_df()
+    }, options = list(pageLength = 5))
   
   map <- eventReactive(((!is.null(input$top_websites_search) && 
                                                 any(unlist(input$top_websites_search) != "") && 
                                                 length(unlist(input$top_websites_search)) > 0)), {
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0){
+      
       df <- top_websites_df() %>% 
         filter(grepl(pattern = paste0(unlist(input$top_websites_search)), x = title, ignore.case = TRUE))
-      # min_long <- min(df$mean_long)
-      # max_long <- max(df$mean_long)
-      # min_lat <- min(df$mean_lat)
-      # max_lat <- max(df$mean_lat)
-      # centre_long <- (min_long + max_long)/2
-      # centre_lat <- (min_lat + max_lat)/2
+      
       return(leaflet(df, width=500, height=400) %>% addTiles() %>% 
                #setView(lng = centre_long, lat = centre_lat, zoom = 18) %>% 
               #fitBounds(min_long, min_lat, max_long, max_lat) %>% 
