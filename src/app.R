@@ -33,7 +33,7 @@ ui <- fluidPage(
                                 "json", ".json")
            ),  
            h3("Filter Criteria"), 
-           selectizeInput('timezone', label = 'Select time zone', choices = OlsonNames(), selected = "GMT", multiple = FALSE), 
+           selectizeInput('timezone', label = 'Time zone', choices = OlsonNames(), selected = "GMT", multiple = FALSE), 
            uiOutput("dates"), 
            sliderInput("time", "Time Range (Hours of Day)",
                        min = 0, max = 24,
@@ -50,22 +50,24 @@ ui <- fluidPage(
            actionButton("proceed", "Proceed")
     ), 
     column(9, 
-    fluidRow(column(4, 
+    fluidRow(column(3, 
                     textInput('search_terms', 'Search phrases', placeholder = 'Add a search phrase'), 
                     actionButton('add_term', 'Add phrase'), 
                     DT::dataTableOutput('search_term_table'), 
-                    actionButton('remove_terms', 'Remove selected terms from search'), 
-           DT::dataTableOutput('top_websites'), # https://yihui.shinyapps.io/DT-rows/
-           DT::dataTableOutput('webpages')
+                    actionButton('remove_terms', 'Remove selected terms from search') #, 
+           #DT::dataTableOutput('top_websites'), # https://yihui.shinyapps.io/DT-rows/
+           #DT::dataTableOutput('webpages')
            ), 
     
-    column(5, 
+    column(6, 
            leafletOutput("map"))), 
     
     br(), 
     
-    fluidRow(column(9, 
-                     plotOutput("bars", click = "plot_click"))
+    fluidRow(column(9, tabsetPanel(
+      tabPanel("Top 10", plotOutput("bars", click = "plot_click")),
+      tabPanel("Summary",DT::dataTableOutput('top_websites')), 
+      tabPanel("Details",DT::dataTableOutput('webpages'))))
              )
     
   )
@@ -465,14 +467,44 @@ server <- function(input, output, session) {
     }, 
       options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
   
-  output$bars <- renderPlot({ggplot(data.frame("Top_Words" = c("Python", "R", "Despacito",
-                                                               "definition", "for", "loop",
-                                                               "UBC", "Vancouver", "YouTube", "programming"),
-                                               "Count" = c(121, 99, 98, 67, 55, 52, 27, 25, 20, 15)), 
-                                    aes(x = Top_Words, y = Count, fill = Count)) + 
-      geom_bar(stat = "identity") + 
-      labs(title = "Most Frequent Words - Click on bars to exclude/include related webpages", 
-           x = "Top occurring words", y = "Number of occurrances")})
+  output$bars <- renderPlot({
+    
+    if(!is.null(input$history_json) && 
+       !is.null(input$location_json) && 
+       !is.null(input$proceed) && 
+       input$proceed > 0 && 
+       !is.null(input$map_bounds) && 
+       !is.null(websites_display_df()) && 
+       nrow(websites_display_df()) > 1){
+      
+      if (!is.null(search_list$terms) && 
+          length(search_list$terms) > 0){
+        websites_display <- websites_display_df() %>% 
+          filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
+                       x = title, ignore.case = TRUE))
+      }else{
+        websites_display <- websites_display_df()
+      }
+      
+      websites_plot <- websites_display %>% 
+        group_by(page) %>% 
+        summarise(visits = n()) %>% 
+        arrange(desc(visits)) %>% 
+        top_n(n = 10, wt = visits)
+      
+      plot <- ggplot(data = websites_plot, aes(x = page, y = visits, colour = 'blue')) + 
+        geom_bar(stat = "identity") + 
+        labs(title = 'Most frequently visited websites', 
+             x = 'Website', 
+             y = 'Number of Visits')
+      
+      return(plot)
+      
+    }else{
+      return(ggplot())
+    }
+    
+  })
   
   
   # https://yihui.shinyapps.io/DT-radio/
