@@ -17,43 +17,54 @@ options(shiny.maxRequestSize=100*1024^2)
 time_range_start <- NULL
 time_range_end <- NULL
 
-ui <- fluidPage(theme = "bootstrap.css",
-  h2("Google Chrome History Assistant"), 
-  br(), 
+ui <- fluidPage(theme = "bootstrap.css", 
+                br(), 
+  h1("Google Chrome History Assistant"), 
   fluidRow(
     column(3, 
            fileInput("history_json", 
-                     "Select Chrome History JSON File",
+                     h6("Select Chrome History JSON File"),
                     accept = c("text/json", 
                                "json", ".json")
            ), 
            fileInput("location_json", 
-                     "Select Chrome Location JSON File",
+                     h6("Select Chrome Location JSON File"),
                      accept = c("text/json", 
                                 "json", ".json")
            ),  
            h3("Filter Criteria"), 
-           selectizeInput('timezone', label = 'Time zone', choices = OlsonNames(), selected = "GMT", multiple = FALSE), 
+           selectizeInput('timezone', label = h6('Time zone'), choices = OlsonNames(), selected = "GMT", multiple = FALSE), 
            uiOutput("dates"), 
-           sliderInput("time", "Time Range (Hours of Day)",
+           sliderInput("time", h6("Time Range (Hours of Day)"),
                        min = 0, max = 24,
                        value = c(0,24)), 
-           checkboxGroupInput("days", "Days of Week:",
-                              c("Monday" = "Mon",
-                                "Tuesday" = "Tue",
-                                "Wednesday" = "Wed", 
-                                "Thursday" = "Thu", 
-                                "Friday" = "Fri", 
-                                "Saturday" = "Sat", 
-                                "Sunday" = "Sun"), 
+           checkboxGroupInput("days", h6("Days of Week:"), 
+                              choiceNames = list(h6('Monday'), 
+                                                 h6('Tuesday'), 
+                                                 h6('Wednesday'), 
+                                                 h6('Thursday'), 
+                                                 h6('Firday'), 
+                                                 h6('Saturday'), 
+                                                 h6('Sunday')), 
+                              choiceValues = list("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"), 
+                              # c("Monday" = "Mon",
+                              #   "Tuesday" = "Tue",
+                              #   "Wednesday" = "Wed", 
+                              #   "Thursday" = "Thu", 
+                              #   "Friday" = "Fri", 
+                              #   "Saturday" = "Sat", 
+                              #   "Sunday" = "Sun"), 
                               selected = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")), 
            actionButton("proceed", "Proceed")
     ), 
     column(9, 
     fluidRow(column(3, 
-                    textInput('search_terms', 'Search phrases', placeholder = 'Add a search phrase'), 
+                    textInput('search_terms', h6('Search phrases'), placeholder = 'Add a search phrase'), 
                     actionButton('add_term', 'Add phrase'), 
+                    br(), 
+                    br(), 
                     DT::dataTableOutput('search_term_table'), 
+                    br(), 
                     actionButton('remove_terms', 'Remove selected terms from search') #, 
            #DT::dataTableOutput('top_websites'), # https://yihui.shinyapps.io/DT-rows/
            #DT::dataTableOutput('webpages')
@@ -631,18 +642,20 @@ server <- function(input, output, session) {
     }
   })
   
-  search_terms <- eventReactive(search_list$terms, {
+  search_terms <- reactive({
     if (!is.null(search_list$terms)){
-      search_df <- data_frame('Search terms' = search_list$terms)
+      search_df <- data_frame(' ' = search_list$terms)
     }else{
-      search_df <- data_frame('Search terms' = c('No search phrases selected'))
+      search_df <- data_frame(' ' = c('No search phrases selected'))
     }
     
     return(search_df)
     
   })
   
-  output$search_term_table <- DT::renderDataTable({search_terms()}, options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
+  output$search_term_table <- DT::renderDataTable({
+    search_terms()
+    }, options = list(pageLength = 5, dom = 't', paging = FALSE))
   
   
   
