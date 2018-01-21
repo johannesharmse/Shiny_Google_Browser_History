@@ -1,6 +1,6 @@
 # Author: Johannes Harmse
 # Date Created: 14-01-2018
-# Last Modified: 18-01-2018
+# Last Modified: 20-01-2018
 
 library(shiny)
 library(leaflet)
@@ -12,7 +12,7 @@ library(jsonlite)
 library(lubridate)
 library(stringr)
 
-options(shiny.maxRequestSize=100*1024^2) 
+options(shiny.maxRequestSize=200*1024^2) 
 
 time_range_start <- NULL
 time_range_end <- NULL
@@ -47,13 +47,6 @@ ui <- fluidPage(theme = "bootstrap.css",
                                                  h6('Saturday'), 
                                                  h6('Sunday')), 
                               choiceValues = list("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"), 
-                              # c("Monday" = "Mon",
-                              #   "Tuesday" = "Tue",
-                              #   "Wednesday" = "Wed", 
-                              #   "Thursday" = "Thu", 
-                              #   "Friday" = "Fri", 
-                              #   "Saturday" = "Sat", 
-                              #   "Sunday" = "Sun"), 
                               selected = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")), 
            actionButton("proceed", "Proceed")
     ), 
@@ -65,9 +58,7 @@ ui <- fluidPage(theme = "bootstrap.css",
                     br(), 
                     DT::dataTableOutput('search_term_table'), 
                     br(), 
-                    actionButton('remove_terms', 'Remove selected terms from search') #, 
-           #DT::dataTableOutput('top_websites'), # https://yihui.shinyapps.io/DT-rows/
-           #DT::dataTableOutput('webpages')
+                    actionButton('remove_terms', 'Remove phrases')
            ), 
     
     column(6, 
@@ -84,31 +75,6 @@ ui <- fluidPage(theme = "bootstrap.css",
   )
   )
 )
-
-
-# ui <- bootstrapPage(
-#   tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
-#   # leafletOutput("map", width = "100%", height = "100%"),
-#   fluidPage(fluidRow(top = 10, right = 10, 
-#                 dataTableOutput('table')
-#                 )) 
-#absolutePanel(top = 10, right = 10,
-#sliderInput("range", "Magnitudes", min(quakes$mag), max(quakes$mag),
-#            value = range(quakes$mag), step = 0.1
-#),
-#selectInput("colors", "Color Scheme",
-#            rownames(subset(brewer.pal.info, category %in% c("seq", "div")))
-#),
-#checkboxInput("legend", "Show legend", TRUE), 
-#fileInput("file1", "Choose Personal Google Files",
-#          accept = c(
-#            "text/csv",
-#            "text/comma-separated-values,text/plain",
-#            ".csv")
-#)
-#), 
-# dataTableOutput('table')
-#)
 
 server <- function(input, output, session) {
   
@@ -155,16 +121,7 @@ server <- function(input, output, session) {
         mutate(year = year(time), 
                year_day = yday(time))
       
-      # temp <- temp %>% 
-      #   arrange(time) %>% 
-      #   mutate(day = ymd(substr(as.character(time), 1, 10))) #%>% 
-      #   # select(time, lat, long, day)
-      # 
-      # temp <- temp %>% 
-      #   distinct(lat, long, .keep_all = TRUE)
       
-      
-      # as.numeric(as.duration(as.interval(as_datetime(as.numeric(test[[1,1]])/1000) - as_datetime(as.numeric(test[[1000,1]])/1000), start = as_datetime(as.numeric(test[[1,1]])/1000))), "minutes")
     }else{
       temp <- data_frame('time' = character(0), 'lat' = character(0), 'long' = character(0), 
                          'year' = character(0), 'year_day' = character(0))
@@ -372,13 +329,6 @@ server <- function(input, output, session) {
         mutate(title = tolower(iconv(title, to = "ASCII//TRANSLIT"))) %>% 
         select(title, year, hour, url)
       
-      # websites_display <- websites_display %>% 
-      #   mutate(page = if_else(!is.na(substring(title, str_locate(title, '-')[ , 'end'])), 
-      #                         substring(title, 
-      #                                   first = str_locate(title, '-')[ , 'end'] + 1, 
-      #                                           last = nchar(title)), 
-      #                         title))
-      
       
       if (nrow(websites_display) > 0){
       
@@ -419,9 +369,6 @@ server <- function(input, output, session) {
     }
   })
   
-  # https://yihui.shinyapps.io/DT-rows/
-  
-  ## output$top_websites <- DT::renderDataTable(data.frame("Top_Websites" = c("Facebook", "RStudio", "YouTube")))
   output$top_websites <- DT::renderDataTable({
     if (!is.null(search_list$terms) && 
         length(search_list$terms) > 0 && 
@@ -460,21 +407,6 @@ server <- function(input, output, session) {
       data_frame('Webpages' = c('No data available'))
     }
     
-    
-    # else if(is.null(input$history_json) || 
-    #          is.null(input$location_json) || 
-    #          input$proceed == 0 || 
-    #          is.null(input$map_bounds)){
-    #   data_frame('Webpages' = c('No data available'))
-    # }else{
-    #   #clicks_df()
-    #   websites_display <- websites_display_df()
-    #   
-    #   websites_display %>% 
-    #     group_by(page) %>% 
-    #     summarise(visits = n()) %>% 
-    #     arrange(desc(visits))
-    # }
     }, 
       options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
   
@@ -518,8 +450,6 @@ server <- function(input, output, session) {
     
   })
   
-  
-  # https://yihui.shinyapps.io/DT-radio/
   output$webpages <- DT::renderDataTable({
     if (!is.null(search_list$terms) && 
         length(search_list$terms) > 0){
@@ -550,10 +480,7 @@ server <- function(input, output, session) {
 
     }, options = list(pageLength = 5))
   
-  map <- reactive({ #(!is.null(search_list$terms) || (length(input$history_json) > 0 && length(input$location_json) > 0)), {
-    #((!is.null(input$top_websites_search) && 
-    #                                            any(unlist(input$top_websites_search) != "") && 
-    #                                            length(unlist(input$top_websites_search)) > 0)), {
+  map <- reactive({
     if (length(input$history_json) > 0 && 
         length(input$location_json) > 0 && 
         input$proceed > 0){
@@ -566,22 +493,16 @@ server <- function(input, output, session) {
       }
         
       return(leaflet(df, width=500, height=400) %>% addTiles() %>% 
-               #setView(lng = centre_long, lat = centre_lat, zoom = 18) %>% 
-              #fitBounds(min_long, min_lat, max_long, max_lat) %>% 
                addMarkers(lng = ~mean_long, lat = ~mean_lat, clusterOptions = markerClusterOptions(spiderfyOnMaxZoom = FALSE), clusterId = ~id))
     }else{
-      return(leaflet(quakes, width=500, height=400) %>% addTiles() %>%
-               fitBounds(~min(long), ~min(lat), ~max(long), ~max(lat)))
+      return(leaflet(data_frame('lat' = c(-33.9249), 'long' = c(18.4241)), width=500, height=400) %>% addTiles() %>%
+               fitBounds(~min(long)-0.5, ~min(lat)-0.5, ~max(long)+0.5, ~max(lat)+0.5)
+               )
     }
   })
   
   output$map <- renderLeaflet({
-    # Use leaflet() here, and only include aspects of the map that
-    # won't need to change dynamically (at least, not unless the
-    # entire map is being torn down and recreated).
     map()
-    # leaflet(map()) %>% addTiles() %>%
-    #   fitBounds(~min(mean_long), ~min(mean_lat), ~max(mean_long), ~max(mean_lat))
   })
   
   data_of_click <- reactiveValues(clickedMarker=NULL)
@@ -594,22 +515,9 @@ server <- function(input, output, session) {
     if (!is.null(input$history_json) && 
         !is.null(input$location_json) && 
         input$proceed > 0){
-      # bounds <- plot_boundaries()
-      # websites_bounds <- top_websites_df()
-      # websites_bounds <- websites_bounds %>%
-      #   filter(mean_long >= bounds$long[1] &
-      #            mean_long <= bounds$long[2] &
-      #            mean_lat >= bounds$lat[1] &
-      #            mean_lat <= bounds$lat[2])
       
       websites_bounds <- websites_display_df()
-      
-      #websites_bounds <- data_frame('long' = unlist(list(0, unlist(bounds$long))), 'lat' = unlist(list(0, bounds$lat)))
-      
-    #}
-    # if (!is.null(data_of_click$clickedMarker)){
-    #   websites_marker <- top_websites_df()
-    #   websites_marker <- websites_marker[unlist(data_of_click$clickedMarker), ]
+
     }else{
       websites_bounds <- data_frame('Websites' = c('No data available'))
     }
@@ -646,7 +554,7 @@ server <- function(input, output, session) {
     if (!is.null(search_list$terms)){
       search_df <- data_frame(' ' = search_list$terms)
     }else{
-      search_df <- data_frame(' ' = c('No search phrases selected'))
+      search_df <- data_frame(' ' = c('No search phrases'))
     }
     
     return(search_df)
