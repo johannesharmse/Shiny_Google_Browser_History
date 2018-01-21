@@ -238,6 +238,7 @@ server <- function(input, output, session) {
       for (y in 1:length(unique(websites$year))){
         temp_year <- websites %>% filter(year == unique(websites$year)[y])
         for (day in 1:length(unique(temp_year$year_day))){
+          
           temp_day <- temp_year %>% filter(year_day == unique(temp_year$year_day)[day])
           # temp_day <- temp_day %>% filter(hour(time) >= input$time[1] & hour(time) < input$time[2])
 
@@ -378,7 +379,14 @@ server <- function(input, output, session) {
   
   output$top_websites <- DT::renderDataTable({
     
-    # withProgress(message = 'Your table is being generated', {
+  withProgress(message = 'Your table is being generated', value = NULL, {
+    Sys.sleep(1)
+  #})
+    
+    # progress <- shiny::Progress$new()
+    # progress$set(message = "Your table is being generated", value = NULL)
+    # on.exit(progress$close())  
+    
       if (!is.null(search_list$terms) && 
           length(search_list$terms) > 0 && 
           !is.null(websites_display_df()) && 
@@ -415,7 +423,7 @@ server <- function(input, output, session) {
       }else{
         websites_display <- data_frame('Webpages' = c('No data available'))
       }
-    # })
+     })
     
     
 
@@ -427,7 +435,9 @@ server <- function(input, output, session) {
   
   output$bars <- renderPlot({
     
-    # withProgress(message = 'Your graph is being generated', {
+    withProgress(message = 'Your graph is being generated', value = NULL, {
+    Sys.sleep(1)
+    #})
       
       if(!is.null(input$history_json) && 
          !is.null(input$location_json) && 
@@ -465,7 +475,7 @@ server <- function(input, output, session) {
         plot <- ggplot()
         # return(ggplot())
       }
-    # })
+     })
     
     return(plot)
     
@@ -473,7 +483,13 @@ server <- function(input, output, session) {
   
   output$webpages <- DT::renderDataTable({
     
-    # withProgress(message = 'Your table is being generated', {
+    withProgress(message = 'Your table is being generated', value = NULL, {
+     Sys.sleep(1)
+    #})
+    
+    # progress <- shiny::Progress$new()
+    # progress$set(message = "Your table is being generated", value = NULL)
+    # on.exit(progress$close())
       
       if (!is.null(search_list$terms) && 
           length(search_list$terms) > 0){
@@ -499,7 +515,7 @@ server <- function(input, output, session) {
         websites_display <- data_frame('Webpages' = c('No data available'))
       }
       
-    # })
+     })
     
     return(websites_display)
 
@@ -528,11 +544,17 @@ server <- function(input, output, session) {
   
   output$map <- renderLeaflet({
     
-    # withProgress(message = 'Your map is being generated', {
+    withProgress(message = 'Your map is being generated', value = NULL, {
+      Sys.sleep(1)
+    #})
+    
+    # progress <- shiny::Progress$new()
+    # progress$set(message = "Your map is being generated", value = NULL)
+    # on.exit(progress$close())
+    
+    map <- map()
       
-      map <- map()
-      
-    # })
+    })
       
     return(map)
     

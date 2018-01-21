@@ -1,0 +1,12 @@
+name: google_chrome_history_assistant
+title: Google Chrome History Assistant
+username:
+account: johannesapps
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 258840
+bundleId: 1185030
+url: https://johannesapps.shinyapps.io/google_chrome_history_assistant/
+when: 1516503499.45154
+asMultiple: FALSE
+asStatic: FALSE
