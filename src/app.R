@@ -19,7 +19,12 @@ time_range_end <- NULL
 
 ui <- fluidPage(theme = "bootstrap.css", 
                 br(), 
-  h1("Google Chrome History Assistant"), 
+  h1("Browser History Assistant"), 
+  h6("Download your personal Google Chrome and Location data ", a(href="https://support.google.com/accounts/answer/3024190?hl=en", "here"), 
+     br(), "(Specify download format as JSON)"), 
+  h6("Alternatively, download sample data ", a(href="https://github.com/johannesharmse/Shiny_Google_Browser_History/tree/master/data", "here")), 
+  br(), 
+  # <h6>Download your personal data <a href=https://support.google.com/accounts/answer/3024190?hl=en>here</a></h6> 
   fluidRow(
     column(3, 
            fileInput("history_json", 
