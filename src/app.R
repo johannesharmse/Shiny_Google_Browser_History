@@ -378,7 +378,7 @@ server <- function(input, output, session) {
   
   output$top_websites <- DT::renderDataTable({
     
-    withProgress(message = 'Your table is being generated', {
+    # withProgress(message = 'Your table is being generated', {
       if (!is.null(search_list$terms) && 
           length(search_list$terms) > 0 && 
           !is.null(websites_display_df()) && 
@@ -415,7 +415,7 @@ server <- function(input, output, session) {
       }else{
         websites_display <- data_frame('Webpages' = c('No data available'))
       }
-    })
+    # })
     
     
 
@@ -427,7 +427,7 @@ server <- function(input, output, session) {
   
   output$bars <- renderPlot({
     
-    withProgress(message = 'Your graph is being generated', {
+    # withProgress(message = 'Your graph is being generated', {
       
       if(!is.null(input$history_json) && 
          !is.null(input$location_json) && 
@@ -465,7 +465,7 @@ server <- function(input, output, session) {
         plot <- ggplot()
         # return(ggplot())
       }
-    })
+    # })
     
     return(plot)
     
@@ -473,7 +473,7 @@ server <- function(input, output, session) {
   
   output$webpages <- DT::renderDataTable({
     
-    withProgress(message = 'Your table is being generated', {
+    # withProgress(message = 'Your table is being generated', {
       
       if (!is.null(search_list$terms) && 
           length(search_list$terms) > 0){
@@ -499,7 +499,7 @@ server <- function(input, output, session) {
         websites_display <- data_frame('Webpages' = c('No data available'))
       }
       
-    })
+    # })
     
     return(websites_display)
 
@@ -528,11 +528,11 @@ server <- function(input, output, session) {
   
   output$map <- renderLeaflet({
     
-    withProgress(message = 'Your map is being generated', {
+    # withProgress(message = 'Your map is being generated', {
       
       map <- map()
       
-    })
+    # })
       
     return(map)
     
