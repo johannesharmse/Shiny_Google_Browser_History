@@ -43,7 +43,7 @@ ui <- fluidPage(theme = "bootstrap.css",
                                                  h6('Tuesday'), 
                                                  h6('Wednesday'), 
                                                  h6('Thursday'), 
-                                                 h6('Firday'), 
+                                                 h6('Friday'), 
                                                  h6('Saturday'), 
                                                  h6('Sunday')), 
                               choiceValues = list("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"), 
@@ -93,6 +93,8 @@ server <- function(input, output, session) {
       attr(temp$time, "tzone") <- input$timezone
       
     }else{
+      #temp <- readRDS(file = 'data/browser.rds')
+      #temp <- temp %>%  select(time, title, url)
       temp <- data_frame('time' = character(0), 'title' = character(0), 'url' = character(0))
     }
     
@@ -104,6 +106,10 @@ server <- function(input, output, session) {
   location <- eventReactive(input$location_json, {
     if (length(input$location_json) > 0){
       temp <- fromJSON(input$location_json$datapath)
+    #} else{
+    #   temp <- fromJSON('data/locations.json')
+    # }
+      
       temp <- temp$locations
       colnames(temp) <- c('time', 'lat', 'long', 'a', 'b', 'c', 'd', 'e')
       temp <- temp %>% select(time, lat, long)
@@ -123,7 +129,7 @@ server <- function(input, output, session) {
       
       
     }else{
-      temp <- data_frame('time' = character(0), 'lat' = character(0), 'long' = character(0), 
+      temp <- data_frame('time' = character(0), 'lat' = character(0), 'long' = character(0),
                          'year' = character(0), 'year_day' = character(0))
     }
     
@@ -141,6 +147,7 @@ server <- function(input, output, session) {
       time_max <- Sys.Date()
     }
     return(c(time_min, time_max))
+    
   })
   
   output$dates <- renderUI({
