@@ -32,7 +32,7 @@ ui <- fluidPage(theme = "bootstrap.css",
                      accept = c("text/json", 
                                 "json", ".json")
            ),  
-           h3("Filter Criteria"), 
+           h4("Filter Criteria"), 
            selectizeInput('timezone', label = h6('Time zone'), choices = OlsonNames(), selected = "GMT", multiple = FALSE), 
            uiOutput("dates"), 
            sliderInput("time", h6("Time Range (Hours of Day)"),
@@ -146,7 +146,7 @@ server <- function(input, output, session) {
   output$dates <- renderUI({
     date_range <- time_range()
     dateRangeInput('dateRange',
-                   label = 'Date range input:',
+                   label = h6('Date range input:'),
                    start = date_range[1], 
                    end = date_range[2] - days(1), 
                    min = date_range[1], 
@@ -370,113 +370,131 @@ server <- function(input, output, session) {
   })
   
   output$top_websites <- DT::renderDataTable({
-    if (!is.null(search_list$terms) && 
-        length(search_list$terms) > 0 && 
-        !is.null(websites_display_df()) && 
-                 nrow(websites_display_df()) > 1){
-      
-      websites_display <- websites_display_df() %>%
-      #clicks_df() %>% 
-        filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
-                     x = title, ignore.case = TRUE))
-      
-      websites_display %>% 
-        group_by(page) %>% 
-        summarise(visits = n()) %>% 
-        arrange(desc(visits))
-      
-    }else if(!is.null(input$history_json) && 
-             !is.null(input$location_json) && 
-             !is.null(input$proceed) && 
-             input$proceed > 0 && 
-             !is.null(input$map_bounds) && 
-             !is.null(websites_display_df()) && 
-             nrow(websites_display_df()) > 1){
-      #clicks_df()
-      websites_display <- websites_display_df()
-      
-      websites_display %>% 
-        group_by(page) %>% 
-        summarise(visits = n()) %>% 
-        arrange(desc(visits))
-      
-      #websites_display #%>% 
-      ##select(time, title, url)
-      
-    }else{
-      data_frame('Webpages' = c('No data available'))
-    }
+    
+    withProgress(message = 'Your table is being generated', {
+      if (!is.null(search_list$terms) && 
+          length(search_list$terms) > 0 && 
+          !is.null(websites_display_df()) && 
+          nrow(websites_display_df()) > 1){
+        
+        websites_display <- websites_display_df() %>%
+          #clicks_df() %>% 
+          filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
+                       x = title, ignore.case = TRUE))
+        
+        websites_display <- websites_display %>% 
+          group_by(page) %>% 
+          summarise(visits = n()) %>% 
+          arrange(desc(visits))
+        
+      }else if(!is.null(input$history_json) && 
+               !is.null(input$location_json) && 
+               !is.null(input$proceed) && 
+               input$proceed > 0 && 
+               !is.null(input$map_bounds) && 
+               !is.null(websites_display_df()) && 
+               nrow(websites_display_df()) > 1){
+        #clicks_df()
+        websites_display <- websites_display_df()
+        
+        websites_display <- websites_display %>% 
+          group_by(page) %>% 
+          summarise(visits = n()) %>% 
+          arrange(desc(visits))
+        
+        #websites_display #%>% 
+        ##select(time, title, url)
+        
+      }else{
+        websites_display <- data_frame('Webpages' = c('No data available'))
+      }
+    })
+    
+    
+
+    
+    return(websites_display)
     
     }, 
       options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
   
   output$bars <- renderPlot({
     
-    if(!is.null(input$history_json) && 
-       !is.null(input$location_json) && 
-       !is.null(input$proceed) && 
-       input$proceed > 0 && 
-       !is.null(input$map_bounds) && 
-       !is.null(websites_display_df()) && 
-       nrow(websites_display_df()) > 1){
+    withProgress(message = 'Your graph is being generated', {
       
-      if (!is.null(search_list$terms) && 
-          length(search_list$terms) > 0){
-        websites_display <- websites_display_df() %>% 
-          filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
-                       x = title, ignore.case = TRUE))
+      if(!is.null(input$history_json) && 
+         !is.null(input$location_json) && 
+         !is.null(input$proceed) && 
+         input$proceed > 0 && 
+         !is.null(input$map_bounds) && 
+         !is.null(websites_display_df()) && 
+         nrow(websites_display_df()) > 1){
+        
+        if (!is.null(search_list$terms) && 
+            length(search_list$terms) > 0){
+          websites_display <- websites_display_df() %>% 
+            filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
+                         x = title, ignore.case = TRUE))
+        }else{
+          websites_display <- websites_display_df()
+        }
+        
+        websites_plot <- websites_display %>% 
+          group_by(page) %>% 
+          summarise(visits = n()) %>% 
+          arrange(desc(visits))
+        
+        websites_plot <- websites_plot[1:10, ]
+        
+        plot <- ggplot(data = websites_plot, aes(x = page, y = visits)) + 
+          geom_bar(fill = 'turquoise', stat = "identity") + 
+          labs(title = 'Most frequently visited websites', 
+               x = 'Website', 
+               y = 'Number of Visits')
+        
+        # return(plot)
+        
       }else{
-        websites_display <- websites_display_df()
+        plot <- ggplot()
+        # return(ggplot())
       }
-      
-      websites_plot <- websites_display %>% 
-        group_by(page) %>% 
-        summarise(visits = n()) %>% 
-        arrange(desc(visits))
-      
-      websites_plot <- websites_plot[1:10, ]
-      
-      plot <- ggplot(data = websites_plot, aes(x = page, y = visits)) + 
-        geom_bar(fill = 'blue', stat = "identity") + 
-        labs(title = 'Most frequently visited websites', 
-             x = 'Website', 
-             y = 'Number of Visits')
-      
-      return(plot)
-      
-    }else{
-      return(ggplot())
-    }
+    })
+    
+    return(plot)
     
   })
   
   output$webpages <- DT::renderDataTable({
-    if (!is.null(search_list$terms) && 
-        length(search_list$terms) > 0){
-      websites_display <- websites_display_df() %>%
-        #clicks_df() %>% 
-        filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
-                     x = title, ignore.case = TRUE))
+    
+    withProgress(message = 'Your table is being generated', {
       
-      websites_display #%>% 
-        #select(time, title, url)
+      if (!is.null(search_list$terms) && 
+          length(search_list$terms) > 0){
+        websites_display <- websites_display_df() %>%
+          filter(grepl(pattern = paste0(search_list$terms, collapse = '|'), 
+                       x = title, ignore.case = TRUE))
+        
+        # websites_display
+        
+      }else if(!is.null(input$history_json) && 
+               !is.null(input$location_json) && 
+               !is.null(input$proceed) && 
+               (input$proceed > 0) && 
+               !is.null(input$map_bounds) && 
+               !is.null(websites_display_df()) && 
+               nrow(websites_display_df()) > 1){
+        
+        websites_display <- websites_display_df()
+        
+        # websites_display
+        
+      }else{
+        websites_display <- data_frame('Webpages' = c('No data available'))
+      }
       
-    }else if(!is.null(input$history_json) && 
-             !is.null(input$location_json) && 
-             !is.null(input$proceed) && 
-             (input$proceed > 0) && 
-             !is.null(input$map_bounds) && 
-             !is.null(websites_display_df()) && 
-             nrow(websites_display_df()) > 1){
-      #clicks_df()
-      websites_display <- websites_display_df()
-      
-      websites_display #%>% 
-      #select(time, title, url)
-      
-    }else{
-      data_frame('Webpages' = c('No data available'))
-    }
+    })
+    
+    return(websites_display)
 
     }, options = list(pageLength = 5))
   
@@ -502,7 +520,15 @@ server <- function(input, output, session) {
   })
   
   output$map <- renderLeaflet({
-    map()
+    
+    withProgress(message = 'Your map is being generated', {
+      
+      map <- map()
+      
+    })
+      
+    return(map)
+    
   })
   
   data_of_click <- reactiveValues(clickedMarker=NULL)
