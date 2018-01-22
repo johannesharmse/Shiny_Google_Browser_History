@@ -5,8 +5,8 @@ account: johannesapps
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 258840
-bundleId: 1185908
+bundleId: 1187515
 url: https://johannesapps.shinyapps.io/google_chrome_history_assistant/
-when: 1516566486.68011
+when: 1516647503.74315
 asMultiple: FALSE
 asStatic: FALSE

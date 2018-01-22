@@ -12,7 +12,7 @@ library(jsonlite)
 library(lubridate)
 library(stringr)
 
-options(shiny.maxRequestSize=200*1024^2) 
+options(shiny.maxRequestSize=500*1024^2) 
 
 time_range_start <- NULL
 time_range_end <- NULL
@@ -28,12 +28,12 @@ ui <- fluidPage(theme = "bootstrap.css",
   fluidRow(
     column(3, 
            fileInput("history_json", 
-                     h6("Select Chrome History JSON File"),
+                     h6("Select Browser History JSON File"),
                     accept = c("text/json", 
                                "json", ".json")
            ), 
            fileInput("location_json", 
-                     h6("Select Chrome Location JSON File"),
+                     h6("Select Location JSON File"),
                      accept = c("text/json", 
                                 "json", ".json")
            ),  
