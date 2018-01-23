@@ -150,6 +150,7 @@ server <- function(input, output, session) {
       # close(file(input$location_json$datapath, open="r"))
       
       temp <- fromJSON(input$location_json$datapath)
+      temp <- temp$locations
       
     #} else{
     #   temp <- fromJSON('data/locations.json')
