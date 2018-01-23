@@ -110,14 +110,55 @@ server <- function(input, output, session) {
   
   location <- eventReactive(input$location_json, {
     if (length(input$location_json) > 0){
+      # # con <- file(input$location_json$datapath, open="r")
+      # 
+      # temp <- data_frame('time' = numeric(0), 'lat' = numeric(0), 'long' = numeric(0))
+      # jsonlist <- temp
+      # 
+      # countdown <- 0
+      # col <- 0
+      # #jsonlist <- c()
+      # 
+      # lines <- readLines(file(input$location_json$datapath, open="r"), warn = FALSE)
+      # 
+      # for (line in 1:length(lines)){
+      #   if (grepl('locations', lines[line]) || grepl('}, {', lines[line], fixed = TRUE)){
+      #     countdown <- 5
+      #     jsonlist <- data_frame('time' = numeric(0), 'lat' = numeric(0), 'long' = numeric(0))
+      #     col <- 0
+      #   }
+      #   
+      #   countdown <- countdown - 1
+      #   
+      #   
+      #   if (countdown %in% 1:3){
+      #     col <- col + 1
+      #     jsonlist[1, col] <- as.numeric(gsub("\"", "", (trimws(substr(str_extract(lines[line], ':.*,'), 2, nchar(str_extract(lines[line], ':.*,'))-1), which = 'both'))))
+      #     if (col == 3){
+      #       temp <- rbind(temp, jsonlist)
+      #     }
+      #   }
+      #   
+      # 
+      # }
+      # 
+      # # while (length() > 0) {
+      # #   
+      # #   
+      # # }
+      # 
+      # close(file(input$location_json$datapath, open="r"))
+      
       temp <- fromJSON(input$location_json$datapath)
+      
     #} else{
     #   temp <- fromJSON('data/locations.json')
     # }
       
-      temp <- temp$locations
-      colnames(temp) <- c('time', 'lat', 'long', 'a', 'b', 'c', 'd', 'e')
-      temp <- temp %>% select(time, lat, long)
+      # temp <- temp$locations
+      temp <- temp %>% select(1:3)
+      colnames(temp) <- c('time', 'lat', 'long')
+      #temp <- temp %>% select(time, lat, long)
       
       # clean data
       
