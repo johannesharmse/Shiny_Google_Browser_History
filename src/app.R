@@ -20,6 +20,8 @@ options(rsconnect.max.bundle.size=3145728000)
 # initialising variables
 time_range_start <- NULL
 time_range_end <- NULL
+history_default <- readRDS(file = 'data/history.rds')
+location_default <- readRDS(file = 'data/location.rds')
 
 # dashboard sidebar
 sidebar <- dashboardSidebar(
@@ -156,7 +158,8 @@ server <- function(input, output, session) {
   
   # instructions
   observeEvent(input$proceed, {
-    if (input$proceed == 0){  
+    if (input$proceed == 0){ 
+      data_path$modal_closed <- F
       showModal(modalDialog(
           h1("How to get started"),
           br(), 
@@ -165,29 +168,59 @@ server <- function(input, output, session) {
           actionButton('default', 'Yes'), 
           actionButton('personality', "No"), 
           br(), 
-          easyClose = FALSE
+          easyClose = TRUE
         ))
     }
   }, ignoreNULL = FALSE)
   
-  data_path <- reactiveValues(default = FALSE)
+  observeEvent(input$default,{
+      data_path$modal_closed <- TRUE
+      removeModal()
+    })
   
-  observeEvent(input$default, {
-      data_path$default <- TRUE
-  })
+  observe({
+      if(data_path$modal_closed){
+        data_path$default <- TRUE
+        # message("This works")
+      }
+    })
+  
+  data_path <- reactiveValues(default = FALSE, modal_closed = F)
+  data_df <- reactiveValues(history = NULL, location = NULL)
+  
+  observeEvent(data_path$default,  {
+    if (data_path$default){                          
+      if (length(data_default$history) > 0){
+        temp <- history_default
+        attr(temp$time, "tzone") <- input$timezone
+        
+        data_df$location <- location_default
+        
+        attr(data_df$location$time, "tzone") <- input$timezone
+      
+        data_df$location <- data_df$location %>% 
+          mutate(year = year(time), 
+                 year_day = yday(time))
+        
+      }else{
+        temp <- data_frame('time' = character(0), 'title' = character(0), 'url' = character(0))
+      }
+      
+      data_df$history <- temp
+      # return(temp)
+    }
+    
+  }, ignoreNULL = TRUE)
   
   # default path
   data_default <- list('history' = c('https://raw.githubusercontent.com/johannesharmse/Shiny_Google_Browser_History/master/data/sample%20Browser%20History.json'), 
                        'location' = c('https://raw.githubusercontent.com/johannesharmse/Shiny_Google_Browser_History/master/data/sample%20Location%20History.json'))
   
   # load user browser history file
-  history <- eventReactive(input$history_json || data_path$default, {
-    if (length(input$history_json) > 0 || length(data_default$history) > 0){
-      if (length(input$history_json) > 0){
-        temp <- fromJSON(input$history_json$datapath)$`Browser History`
-      }else{
-        temp <- fromJSON(data_default$history)$`Browser History`
-      }
+  history <- observeEvent(input$history_json, {
+                               
+    if (length(input$history_json) > 0){
+      temp <- fromJSON(input$history_json$datapath)$`Browser History`
       colnames(temp) <- c('icon', 'page_transition', 'title', 'url', 'id', 'time')
       temp <- temp %>% select(time, title, url)
       
@@ -201,64 +234,13 @@ server <- function(input, output, session) {
       temp <- data_frame('time' = character(0), 'title' = character(0), 'url' = character(0))
     }
     
-    return(temp)
+    data_df$history <- temp
+    #return(temp)
     
-  })
+  }, ignoreNULL = FALSE)
   
-  location <- eventReactive(input$location_json, {
+  location <- observeEvent(input$location_json, {
     if (length(input$location_json) > 0){
-      # # con <- file(input$location_json$datapath, open="r")
-      # 
-      # temp <- data_frame('time' = numeric(0), 'lat' = numeric(0), 'long' = numeric(0))
-      # jsonlist <- temp
-      # 
-      # countdown <- 0
-      # col <- 0
-      # #jsonlist <- c()
-      # 
-      # lines <- readLines(file(input$location_json$datapath, open="r"), warn = FALSE)
-      # 
-      # for (line in 1:length(lines)){
-      #   if (grepl('locations', lines[line]) || grepl('}, {', lines[line], fixed = TRUE)){
-      #     countdown <- 5
-      #     jsonlist <- data_frame('time' = numeric(0), 'lat' = numeric(0), 'long' = numeric(0))
-      #     col <- 0
-      #   }
-      #   
-      #   countdown <- countdown - 1
-      #   
-      #   
-      #   if (countdown %in% 1:3){
-      #     col <- col + 1
-      #     jsonlist[1, col] <- as.numeric(gsub("\"", "", (trimws(substr(str_extract(lines[line], ':.*,'), 2, nchar(str_extract(lines[line], ':.*,'))-1), which = 'both'))))
-      #     if (col == 3){
-      #       temp <- rbind(temp, jsonlist)
-      #     }
-      #   }
-      #   
-      # 
-      # }
-      # 
-      # # while (length() > 0) {
-      # #   
-      # #   
-      # # }
-      # 
-      # close(file(input$location_json$datapath, open="r"))
-      
-    #   temp <- fromJSON(input$location_json$datapath)
-    #   temp <- temp$locations
-    #   
-    # #} else{
-    # #   temp <- fromJSON('data/locations.json')
-    # # }
-    #   
-    #   # temp <- temp$locations
-    #   temp <- temp %>% select(1:3)
-      
-      # temp <- stream_in(file(input$location_json$datapath, open="r"))$locations %>% select(1:3)
-      # close(file(input$location_json$datapath, open="r"))
-      
       temp <- fromJSON(input$location_json$datapath)$locations %>% select(1:3)
       colnames(temp) <- c('time', 'lat', 'long')
       #temp <- temp %>% select(time, lat, long)
@@ -282,38 +264,56 @@ server <- function(input, output, session) {
                          'year' = character(0), 'year_day' = character(0))
     }
     
-    return(temp)
+    data_df$location <- temp
+    #return(temp)
     
   })
   
-  time_range <- eventReactive(input$history_json, {
-    if (length(input$history_json) > 0){
-      temp <- history()
+  times <- reactiveValues(min = Sys.Date() - 365, max = Sys.Date())
+  
+  observeEvent({
+    input$proceed}, {
+    #input$history_json
+    
+    #data_df$history}, {
+    #if (length(input$history_json) > 0){
+    #  temp <- history()
+    #  time_min <- min(temp$time)
+    #  time_max <- max(temp$time)
+    #}else 
+    if(!is.null(data_df$history)){
+      temp <- data_df$history
       time_min <- min(temp$time)
       time_max <- max(temp$time)
     }else{
       time_min <- Sys.Date() - 365
       time_max <- Sys.Date()
     }
-    return(c(time_min, time_max))
+      
+    times$min <- time_min
+    times$max <- time_max
+      #return(c(time_min, time_max))
     
   })
   
   output$dates <- renderUI({
-    date_range <- time_range()
+    #date_range <- time_range()
     dateRangeInput('dateRange',
                    label = h6('Date range input:'),
-                   start = date_range[1], 
-                   end = date_range[2] - days(1), 
-                   min = date_range[1], 
-                   max = date_range[2]
+                   start = isolate(times$min), # date_range[1], 
+                   end = as_datetime(isolate(times$max)) - days(1), #date_range[2] - days(1), 
+                   min = isolate(times$min), #date_range[1], 
+                   max = isolate(times$max) #date_range[2]
                    )
   })
   
   date_range_df <- eventReactive(input$proceed, {
     
-    if (length(input$history_json) > 0 && length(input$dateRange) > 0){
-      temp <- history()
+    if (#(length(input$history_json) > 0 || 
+         !is.null(data_df$history) && 
+        length(input$dateRange) > 0){
+      temp <- data_df$history
+      #temp <- history()
       temp <- temp %>% filter(time >= input$dateRange[1] & time <= input$dateRange[2])
       temp <- temp %>% 
         mutate(year = year(time), 
@@ -328,8 +328,11 @@ server <- function(input, output, session) {
   
   hour_range <- eventReactive(input$proceed, {
     
-    if (length(input$history_json) > 0){
-      temp <- history()
+    if (#length(input$history_json) > 0
+      !is.null(data_df$history)){
+      
+      temp <- data_df$history
+      #temp <- history()
       
       temp <- temp %>% 
         mutate(year = year(time), 
@@ -363,8 +366,10 @@ server <- function(input, output, session) {
   
   days_df <- eventReactive(input$proceed, {
     
-    if (length(input$history_json) > 0 && length(input$days) > 0){
-      temp <- history()
+    if (!is.null(data_df$history) && length(input$days) > 0){
+      #length(input$history_json) > 0 && length(input$days) > 0){
+      #temp <- history()
+      temp <- data_df$history
       temp <- temp %>% filter(wday(time, label = TRUE) %in% input$days)
       temp <- temp %>% 
         mutate(year = year(time), 
@@ -378,9 +383,11 @@ server <- function(input, output, session) {
   })
   
   browser_locations <- eventReactive(input$proceed, {
-    if (length(input$history_json) > 0 && length(input$location_json) > 0){
+    if (!is.null(data_df$history) && !is.null(data_df$location)){
+    #if (length(input$history_json) > 0 && length(input$location_json) > 0){
       websites <- top_websites()
-      locations <- location()
+      #locations <- location()
+      locations <- data_df$location
       
       location_filt <- websites[0, ]
       
@@ -430,9 +437,12 @@ server <- function(input, output, session) {
   
   
   top_websites <- eventReactive(input$proceed, {
-    if (length(input$history_json) > 0 && 
-        length(input$location_json) > 0){ #&& length(input$dates) > 0){
-      websites <- history()# %>% select(title)
+    if (!is.null(data_df$history) && !is.null(data_df$location)){
+    #if (length(input$history_json) > 0 && 
+    #    length(input$location_json) > 0){ #&& length(input$dates) > 0){
+      
+      #websites <- history()# %>% select(title)
+      websites <- data_df$history
       dates_filter <- date_range_df()
       days_filter <- days_df()
       hours_filter <- hour_range()
@@ -444,8 +454,9 @@ server <- function(input, output, session) {
   })
   
   top_websites_df <- eventReactive(input$proceed, {
-    if (length(input$history_json) > 0 && 
-        length(input$location_json) > 0){
+    if (!is.null(data_df$history) && !is.null(data_df$location)){
+    #if (length(input$history_json) > 0 && 
+    #    length(input$location_json) > 0){
       websites <- top_websites()
       locations <- browser_locations()
       # locations <- location()
@@ -468,8 +479,9 @@ server <- function(input, output, session) {
   })
   
   websites_display_df <- eventReactive(input$map_bounds, {
-    if (!is.null(input$history_json) && 
-        !is.null(input$location_json) && 
+    if (!is.null(data_df$history) && !is.null(data_df$location) && 
+    #if (!is.null(input$history_json) && 
+    #    !is.null(input$location_json) && 
         input$proceed > 0 && 
         !is.null(plot_boundaries())){
       
@@ -551,9 +563,11 @@ server <- function(input, output, session) {
           summarise(visits = n()) %>% 
           arrange(desc(visits))
         
-      }else if(!is.null(input$history_json) && 
-               !is.null(input$location_json) && 
-               !is.null(input$proceed) && 
+      }else if(#!is.null(input$history_json) && 
+               #!is.null(input$location_json) && 
+              !is.null(data_df$history) && 
+              !is.null(data_df$location) &&  
+              !is.null(input$proceed) && 
                input$proceed > 0 && 
                !is.null(input$map_bounds) && 
                !is.null(websites_display_df()) && 
@@ -588,9 +602,11 @@ server <- function(input, output, session) {
     Sys.sleep(1)
     #})
       
-      if(!is.null(input$history_json) && 
-         !is.null(input$location_json) && 
-         !is.null(input$proceed) && 
+      if(#!is.null(input$history_json) && 
+         #!is.null(input$location_json) && 
+        !is.null(data_df$history) && 
+        !is.null(data_df$location) &&  
+        !is.null(input$proceed) && 
          input$proceed > 0 && 
          !is.null(input$map_bounds) && 
          !is.null(websites_display_df()) && 
@@ -648,9 +664,11 @@ server <- function(input, output, session) {
         
         # websites_display
         
-      }else if(!is.null(input$history_json) && 
-               !is.null(input$location_json) && 
-               !is.null(input$proceed) && 
+      }else if(#!is.null(input$history_json) && 
+               #!is.null(input$location_json) && 
+              !is.null(data_df$history) && 
+              !is.null(data_df$location) &&  
+              !is.null(input$proceed) && 
                (input$proceed > 0) && 
                !is.null(input$map_bounds) && 
                !is.null(websites_display_df()) && 
@@ -671,9 +689,11 @@ server <- function(input, output, session) {
     }, options = list(pageLength = 5))
   
   map <- reactive({
-    if (length(input$history_json) > 0 && 
-        length(input$location_json) > 0 && 
-        input$proceed > 0){
+    if (#length(input$history_json) > 0 && 
+        #length(input$location_json) > 0 && 
+      !is.null(data_df$history) && 
+      !is.null(data_df$location) &&   
+      input$proceed > 0){
       
       if (length(search_list$terms) > 0){
         df <- top_websites_df() %>% 
@@ -716,9 +736,11 @@ server <- function(input, output, session) {
   })
   
   clicks_df <- reactive({
-    if (!is.null(input$history_json) && 
-        !is.null(input$location_json) && 
-        input$proceed > 0){
+    if (#!is.null(input$history_json) && 
+        #!is.null(input$location_json) && 
+      !is.null(data_df$history) && 
+      !is.null(data_df$location) &&   
+      input$proceed > 0){
       
       websites_bounds <- websites_display_df()
 
