@@ -154,10 +154,40 @@ ui <- dashboardPage(
 # server
 server <- function(input, output, session) {
   
+  # instructions
+  observeEvent(input$proceed, {
+    if (input$proceed == 0){  
+      showModal(modalDialog(
+          h1("How to get started"),
+          br(), 
+          paste0("Do you want to explore the app with sample data or use your own data directly?"), 
+          br(), 
+          actionButton('default', 'Yes'), 
+          actionButton('personality', "No"), 
+          br(), 
+          easyClose = FALSE
+        ))
+    }
+  }, ignoreNULL = FALSE)
+  
+  data_path <- reactiveValues(default = FALSE)
+  
+  observeEvent(input$default, {
+      data_path$default <- TRUE
+  })
+  
+  # default path
+  data_default <- list('history' = c('https://raw.githubusercontent.com/johannesharmse/Shiny_Google_Browser_History/master/data/sample%20Browser%20History.json'), 
+                       'location' = c('https://raw.githubusercontent.com/johannesharmse/Shiny_Google_Browser_History/master/data/sample%20Location%20History.json'))
+  
   # load user browser history file
-  history <- eventReactive(input$history_json, {
-    if (length(input$history_json) > 0){
-      temp <- fromJSON(input$history_json$datapath)$`Browser History`
+  history <- eventReactive(input$history_json || data_path$default, {
+    if (length(input$history_json) > 0 || length(data_default$history) > 0){
+      if (length(input$history_json) > 0){
+        temp <- fromJSON(input$history_json$datapath)$`Browser History`
+      }else{
+        temp <- fromJSON(data_default$history)$`Browser History`
+      }
       colnames(temp) <- c('icon', 'page_transition', 'title', 'url', 'id', 'time')
       temp <- temp %>% select(time, title, url)
       
