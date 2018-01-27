@@ -1,6 +1,6 @@
 # Author: Johannes Harmse
 # Date Created: 14-01-2018
-# Last Modified: 26-01-2018
+# Last Modified: 27-01-2018
 
 # load libraries
 library(shiny)
@@ -225,14 +225,7 @@ server <- function(input, output, session) {
   
   observeEvent({data_df$history}, 
     {
-    #input$history_json
-    
-    #data_df$history}, {
-    #if (length(input$history_json) > 0){
-    #  temp <- history()
-    #  time_min <- min(temp$time)
-    #  time_max <- max(temp$time)
-    #}else 
+
     if(nrow(data_df$history) > 0){
       temp <- data_df$history
       time_min <- min(temp$time)
@@ -240,15 +233,9 @@ server <- function(input, output, session) {
       times$min <- time_min
       times$max <- time_max
     }
-    #else{
-    #  time_min <- Sys.Date() - 365
-    #  time_max <- Sys.Date()
-    #}
-      
+
     
-      #return(c(time_min, time_max))
-    
-  }#, #ignoreNULL = FALSE
+  }
   )
   
   observeEvent({times$min
