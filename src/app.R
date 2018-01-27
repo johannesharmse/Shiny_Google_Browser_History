@@ -1,108 +1,175 @@
 # Author: Johannes Harmse
 # Date Created: 14-01-2018
-# Last Modified: 20-01-2018
+# Last Modified: 26-01-2018
 
+# load libraries
 library(shiny)
 library(leaflet)
 library(RColorBrewer)
 library(tidyverse)
 library(DT)
-#library(rjson)
 library(jsonlite)
 library(lubridate)
 library(stringr)
+library(shinydashboard)
 
-options(shiny.maxRequestSize=500*1024^2) 
+# increase bundle and upload file size limit
+options(shiny.maxRequestSize=3000*1024^2)
+options(rsconnect.max.bundle.size=3145728000)
 
+# initialising variables
 time_range_start <- NULL
 time_range_end <- NULL
 
-ui <- fluidPage(theme = "bootstrap.css", 
-                br(), 
-  h1("Browser History Assistant"), 
-  h6("Download your personal Google Chrome and Location data ", a(href="https://support.google.com/accounts/answer/3024190?hl=en", "here"), 
-     br(), "(Specify download format as JSON)"), 
-  h6("Alternatively, download sample data ", a(href="https://github.com/johannesharmse/Shiny_Google_Browser_History/tree/master/data", "here")), 
-  br(), 
-  # <h6>Download your personal data <a href=https://support.google.com/accounts/answer/3024190?hl=en>here</a></h6> 
-  fluidRow(
-    column(3, 
-           fileInput("history_json", 
+# dashboard sidebar
+sidebar <- dashboardSidebar(
+  tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css")
+    ), 
+  fileInput("history_json",
                      h6("Select Browser History JSON File"),
-                    accept = c("text/json", 
+                    accept = c("text/json",
                                "json", ".json")
-           ), 
-           fileInput("location_json", 
+           ),
+           fileInput("location_json",
                      h6("Select Location JSON File"),
-                     accept = c("text/json", 
+                     accept = c("text/json",
                                 "json", ".json")
-           ),  
-           h4("Filter Criteria"), 
-           selectizeInput('timezone', label = h6('Time zone'), choices = OlsonNames(), selected = "GMT", multiple = FALSE), 
-           uiOutput("dates"), 
+           ),
+           h4("Filter Criteria"),
+           selectizeInput('timezone', label = h6('Time zone'), choices = OlsonNames(), selected = "GMT", multiple = FALSE),
+           uiOutput("dates"),
            sliderInput("time", h6("Time Range (Hours of Day)"),
                        min = 0, max = 24,
-                       value = c(0,24)), 
-           checkboxGroupInput("days", h6("Days of Week:"), 
-                              choiceNames = list(h6('Monday'), 
-                                                 h6('Tuesday'), 
-                                                 h6('Wednesday'), 
-                                                 h6('Thursday'), 
-                                                 h6('Friday'), 
-                                                 h6('Saturday'), 
-                                                 h6('Sunday')), 
-                              choiceValues = list("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"), 
-                              selected = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")), 
+                       value = c(0,24)),
+           checkboxGroupInput("days", h6("Days of Week:"),
+                              choiceNames = list(h6('Monday'),
+                                                 h6('Tuesday'),
+                                                 h6('Wednesday'),
+                                                 h6('Thursday'),
+                                                 h6('Friday'),
+                                                 h6('Saturday'),
+                                                 h6('Sunday')),
+                              choiceValues = list("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
+                              selected = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")),
            actionButton("proceed", "Proceed")
-    ), 
-    column(9, 
-    fluidRow(column(3, 
-                    textInput('search_terms', h6('Search phrases'), placeholder = 'Add a search phrase'), 
-                    actionButton('add_term', 'Add phrase'), 
-                    br(), 
-                    br(), 
-                    DT::dataTableOutput('search_term_table'), 
-                    br(), 
-                    actionButton('remove_terms', 'Remove phrases')
-           ), 
-    
-    column(6, 
-           leafletOutput("map"))), 
-    
-    br(), 
-    
-    fluidRow(column(9, tabsetPanel(
-      tabPanel("Top 10", plotOutput("bars", click = "plot_click")),
-      tabPanel("Summary",DT::dataTableOutput('top_websites')), 
-      tabPanel("Details",DT::dataTableOutput('webpages'))))
-             )
-    
-  )
-  )
 )
 
+# dashboard body
+body <- dashboardBody(tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "bootstrap.css")
+    ),#theme = 'bootstrap.css', 
+  fluidRow(column(3,
+                    textInput('search_terms', h6('Search phrases'), placeholder = 'Add a search phrase'),
+                    actionButton('add_term', 'Add phrase'),
+                    br(),
+                    br(),
+                    DT::dataTableOutput('search_term_table'),
+                    br(),
+                    actionButton('remove_terms', 'Remove phrases')
+           ),
+
+    column(6,
+           leafletOutput("map"))),
+
+    br(),
+
+    fluidRow(column(9, tabsetPanel(
+      tabPanel("Top 10", plotOutput("bars", click = "plot_click")),
+      tabPanel("Summary",DT::dataTableOutput('top_websites')),
+      tabPanel("Details",DT::dataTableOutput('webpages'))))
+             )
+)
+
+ui <- dashboardPage(
+  dashboardHeader(title = 'Browser History Assistant', titleWidth = 450),
+  sidebar,
+  body
+)
+
+# # user interface
+# ui <- dashboardPage(theme = "bootstrap.css",
+#                 br(),
+#   h1("Browser History Assistant"),
+#   h6("Download your personal Google Chrome and Location data ", a(href="https://support.google.com/accounts/answer/3024190?hl=en", "here"),
+#      br(), "(Specify download format as JSON)"),
+#   h6("Alternatively, download sample data ", a(href="https://github.com/johannesharmse/Shiny_Google_Browser_History/tree/master/data", "here")),
+#   br(),
+#   fluidRow(
+#     column(3,
+#            fileInput("history_json",
+#                      h6("Select Browser History JSON File"),
+#                     accept = c("text/json",
+#                                "json", ".json")
+#            ),
+#            fileInput("location_json",
+#                      h6("Select Location JSON File"),
+#                      accept = c("text/json",
+#                                 "json", ".json")
+#            ),
+#            h4("Filter Criteria"),
+#            selectizeInput('timezone', label = h6('Time zone'), choices = OlsonNames(), selected = "GMT", multiple = FALSE),
+#            uiOutput("dates"),
+#            sliderInput("time", h6("Time Range (Hours of Day)"),
+#                        min = 0, max = 24,
+#                        value = c(0,24)),
+#            checkboxGroupInput("days", h6("Days of Week:"),
+#                               choiceNames = list(h6('Monday'),
+#                                                  h6('Tuesday'),
+#                                                  h6('Wednesday'),
+#                                                  h6('Thursday'),
+#                                                  h6('Friday'),
+#                                                  h6('Saturday'),
+#                                                  h6('Sunday')),
+#                               choiceValues = list("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
+#                               selected = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")),
+#            actionButton("proceed", "Proceed")
+#     ),
+#     column(9,
+#     fluidRow(column(3,
+#                     textInput('search_terms', h6('Search phrases'), placeholder = 'Add a search phrase'),
+#                     actionButton('add_term', 'Add phrase'),
+#                     br(),
+#                     br(),
+#                     DT::dataTableOutput('search_term_table'),
+#                     br(),
+#                     actionButton('remove_terms', 'Remove phrases')
+#            ),
+# 
+#     column(6,
+#            leafletOutput("map"))),
+# 
+#     br(),
+# 
+#     fluidRow(column(9, tabsetPanel(
+#       tabPanel("Top 10", plotOutput("bars", click = "plot_click")),
+#       tabPanel("Summary",DT::dataTableOutput('top_websites')),
+#       tabPanel("Details",DT::dataTableOutput('webpages'))))
+#              )
+# 
+#   )
+#   )
+# )
+
+# server
 server <- function(input, output, session) {
   
+  # load user browser history file
   history <- eventReactive(input$history_json, {
     if (length(input$history_json) > 0){
-      temp <- fromJSON(input$history_json$datapath)
-      temp <- temp$`Browser History`
+      temp <- fromJSON(input$history_json$datapath)$`Browser History`
       colnames(temp) <- c('icon', 'page_transition', 'title', 'url', 'id', 'time')
       temp <- temp %>% select(time, title, url)
       
       # clean data
-      
       temp <- temp %>% 
         mutate(time = as_datetime(as.numeric(time)/1000000))
       
       attr(temp$time, "tzone") <- input$timezone
       
     }else{
-      #temp <- readRDS(file = 'data/browser.rds')
-      #temp <- temp %>%  select(time, title, url)
       temp <- data_frame('time' = character(0), 'title' = character(0), 'url' = character(0))
     }
-    
     
     return(temp)
     
@@ -149,15 +216,20 @@ server <- function(input, output, session) {
       # 
       # close(file(input$location_json$datapath, open="r"))
       
-      temp <- fromJSON(input$location_json$datapath)
-      temp <- temp$locations
+    #   temp <- fromJSON(input$location_json$datapath)
+    #   temp <- temp$locations
+    #   
+    # #} else{
+    # #   temp <- fromJSON('data/locations.json')
+    # # }
+    #   
+    #   # temp <- temp$locations
+    #   temp <- temp %>% select(1:3)
       
-    #} else{
-    #   temp <- fromJSON('data/locations.json')
-    # }
+      # temp <- stream_in(file(input$location_json$datapath, open="r"))$locations %>% select(1:3)
+      # close(file(input$location_json$datapath, open="r"))
       
-      # temp <- temp$locations
-      temp <- temp %>% select(1:3)
+      temp <- fromJSON(input$location_json$datapath)$locations %>% select(1:3)
       colnames(temp) <- c('time', 'lat', 'long')
       #temp <- temp %>% select(time, lat, long)
       
