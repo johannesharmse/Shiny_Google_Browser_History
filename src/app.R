@@ -160,7 +160,6 @@ server <- function(input, output, session) {
       }
       
       data_df$history <- temp
-      # return(temp)
     }
     
   }, ignoreNULL = TRUE)
@@ -222,10 +221,10 @@ server <- function(input, output, session) {
     
   })
   
-  times <- reactiveValues(min = Sys.Date() - 365, max = Sys.Date())
+  times <- reactiveValues(min = NULL, max = NULL)
   
-  observeEvent({
-    input$proceed}, {
+  observeEvent({data_df$history}, 
+    {
     #input$history_json
     
     #data_df$history}, {
@@ -234,30 +233,37 @@ server <- function(input, output, session) {
     #  time_min <- min(temp$time)
     #  time_max <- max(temp$time)
     #}else 
-    if(!is.null(data_df$history)){
+    if(nrow(data_df$history) > 0){
       temp <- data_df$history
       time_min <- min(temp$time)
       time_max <- max(temp$time)
-    }else{
-      time_min <- Sys.Date() - 365
-      time_max <- Sys.Date()
+      times$min <- time_min
+      times$max <- time_max
     }
+    #else{
+    #  time_min <- Sys.Date() - 365
+    #  time_max <- Sys.Date()
+    #}
       
-    times$min <- time_min
-    times$max <- time_max
+    
       #return(c(time_min, time_max))
     
-  })
+  }#, #ignoreNULL = FALSE
+  )
   
-  output$dates <- renderUI({
-    #date_range <- time_range()
-    dateRangeInput('dateRange',
-                   label = h6('Date range input:'),
-                   start = isolate(times$min), # date_range[1], 
-                   end = as_datetime(isolate(times$max)) - days(1), #date_range[2] - days(1), 
-                   min = isolate(times$min), #date_range[1], 
-                   max = isolate(times$max) #date_range[2]
-                   )
+  observeEvent({times$min
+               times$max}, {
+    
+    output$dates <- renderUI({
+      #date_range <- time_range()
+      dateRangeInput('dateRange',
+                     label = h6('Date range input:'),
+                     start = times$min, # date_range[1], 
+                     end = times$max - days(1), #date_range[2] - days(1), 
+                     min = times$min, #date_range[1], 
+                     max = times$max #date_range[2]
+                     )
+    })
   })
   
   date_range_df <- eventReactive(input$proceed, {
@@ -544,10 +550,16 @@ server <- function(input, output, session) {
     
 
     
-    return(websites_display)
+    # return(websites_display)
     
-    }, 
-      options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE)))
+    dt <- websites_display
+    colnames(dt) <- paste0('<span style="color:',"white",'">',colnames(dt),'</span>')
+    DT::datatable(dt,escape=F) #, options = list(pageLength = 5, dom = 't')) #%>%
+      #formatStyle(columns = 1:ncol(dt), color = "white")
+    
+    }#, 
+      #options = list(pageLength = 5, search = list(regex = TRUE, caseInsensitive = FALSE))
+  )
   
   output$bars <- renderPlot({
     
@@ -637,9 +649,16 @@ server <- function(input, output, session) {
       
      })
     
-    return(websites_display)
+    # return(websites_display)
+    
+    
+    dt <- websites_display
+    colnames(dt) <- paste0('<span style="color:',"white",'">',colnames(dt),'</span>')
+    DT::datatable(dt,escape=F) #%>%
+      # formatStyle(columns = 1:ncol(dt), color = "white")
 
-    }, options = list(pageLength = 5))
+    }#, options = list(pageLength = 5)
+    )
   
   map <- reactive({
     if (#length(input$history_json) > 0 && 
@@ -720,7 +739,11 @@ server <- function(input, output, session) {
   search_list <- reactiveValues(terms = NULL)
   
   observeEvent(input$add_term, {
-    search_list$terms <- unlist(list(search_list$terms, input$search_terms))
+    if (nchar(trimws(input$search_terms, which = 'both')) > 0){
+      search_list$terms <- unlist(list(search_list$terms, input$search_terms))
+      updateTextInput(session = session, inputId = 'search_terms', value = character(0), 
+                      placeholder = 'Add another phrase')
+    }
   })
   
   observeEvent(input$remove_terms, {
@@ -731,18 +754,26 @@ server <- function(input, output, session) {
   
   search_terms <- reactive({
     if (!is.null(search_list$terms)){
-      search_df <- data_frame(' ' = search_list$terms)
+      search_df <- data_frame('Search phrases (Select rows to remove)' = search_list$terms)
     }else{
-      search_df <- data_frame(' ' = c('No search phrases'))
+      search_df <- data_frame(' ' = c('Add search phrases above'))
     }
+    
+    # colnames(search_df) <- paste0('<span style="color:',"white",'">',colnames(search_df),'</span>')
     
     return(search_df)
     
   })
   
   output$search_term_table <- DT::renderDataTable({
-    search_terms()
-    }, options = list(pageLength = 5, dom = 't', paging = FALSE))
+    
+    #search_terms()
+    dt <- search_terms()
+    colnames(dt) <- paste0('<span style="color:',"white",'">',colnames(dt),'</span>')
+    DT::datatable(dt,escape=F, options = list(dom = 't', paging = FALSE)) #%>%
+      #formatStyle(columns = 1:ncol(dt), color = "white")
+    
+    })
   
   
   

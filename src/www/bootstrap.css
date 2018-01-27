@@ -318,7 +318,7 @@ footer p {
 }
 
 img::selection {
-  background: transparent;
+  background: white;
 }
 
 img::-moz-selection {
