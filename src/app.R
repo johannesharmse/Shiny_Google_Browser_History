@@ -99,10 +99,14 @@ server <- function(input, output, session) {
       showModal(modalDialog(
           h1("How to get started"),
           br(), 
-          paste0("Do you want to explore the app with sample data or use your own data directly?"), 
+          paste0("You can use sample data to explore the app. This is recommended for first time users."), 
           br(), 
-          actionButton('default', 'Yes'), 
-          actionButton('personality', "No"), 
+          br(), 
+          paste0("Alternatively use the file upload buttons in the sidebar menu to use your personal data."), 
+          br(), 
+          br(), 
+          actionButton('default', 'Use Sample Data'), 
+          # actionButton('personality', "Own Data"), 
           br(), 
           easyClose = TRUE
         ))
@@ -112,12 +116,25 @@ server <- function(input, output, session) {
   observeEvent(input$default,{
       data_path$modal_closed <- TRUE
       removeModal()
+      showModal(modalDialog(
+          h1("One Last Thing!"),
+          br(), 
+          paste0("Use the sidebar menu to filter the data according to your preferences. 
+                 Click the 'Proceed' button at the bottom of the sidebar menu once you are ready. 
+                 This will load the data for interaction."), 
+          br(), 
+          br(), 
+          paste0("You can then use the interactive map and phrase search bar for further exploration."), 
+          br(), 
+          easyClose = TRUE
+        ))
+      
+      
     })
   
   observe({
       if(data_path$modal_closed){
         data_path$default <- TRUE
-        # message("This works")
       }
     })
   
